@@ -10,7 +10,7 @@ Plugin originally based off [MekuCube's 1.05 version](https://forums.alliedmods.
 - [Mapping](https://github.com/redsunservers/SuperZombieFortress/wiki/Mapping-for-Super-Zombie-Fortress)
 
 ## Builds
-All builds can be found [here](https://github.com/redsunservers/SuperZombieFortress/actions?query=workflow%3APackage+branch%3Amaster).
+All builds can be found [here](https://github.com/BlackwonderTF/SuperZombieFortress/actions?query=workflow%3APackage+branch%3Amaster).
 To download latest build version, select latest package then "Artifacts" button at top right.
 
 # Required Plugin/Extension Dependencies
