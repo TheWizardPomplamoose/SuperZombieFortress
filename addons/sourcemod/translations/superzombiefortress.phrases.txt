@@ -437,6 +437,11 @@
 		"en"		"{orange}The Killing Gloves of Boxing {red}gives 5 seconds of minicrits on kill."
 	}
 	
+	"Melee_WarriorsSpirit"
+	{
+		"en"		"{orange}The Warrior's Spirit {red}has its health restored on kill decreased to +25."
+	}
+	
 	"Melee_FistsofSteel"
 	{
 		"en"		"{orange}The Fists of Steel {green}gives 10%% melee resistance while active."
@@ -460,6 +465,16 @@
 	"Melee_Amputator"
 	{
 		"en"		"{orange}The Amputator {red}does not heal in an area when taunting."
+	}
+
+	"Melee_HolidayPunch"
+	{
+		"en"		"{orange}The Holiday Punch {red}always crits on the third punch."
+	}
+
+	"Melee_TheWrapAssassin"
+	{
+		"en"		"{orange}The Wrap Assassin {red}has a damage penalty of 20%%."
 	}
 	
 	"Melee_TribalmansShiv"
