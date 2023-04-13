@@ -2,6 +2,5 @@
 *.bat
 *.exe
 build/*
-scripts/install.sh
 *.dat
 *.inc
