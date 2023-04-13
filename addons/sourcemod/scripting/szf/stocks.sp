@@ -172,27 +172,18 @@ stock void ApplyVoodooCursedSoul(int iClient)
 	SetVariantString("");
 	AcceptEntityInput(iClient, "SetCustomModel");
 	
-	TFClassType nClass = TF2_GetPlayerClass(iClient);
+	TFClassType iClass = TF2_GetPlayerClass(iClient);
 	SetEntProp(iClient, Prop_Send, "m_bForcedSkin", true);
-	SetEntProp(iClient, Prop_Send, "m_nForcedSkin", (nClass == TFClass_Spy) ? SKIN_ZOMBIE_SPY : SKIN_ZOMBIE);
+	SetEntProp(iClient, Prop_Send, "m_nForcedSkin", (iClass == TFClass_Spy) ? SKIN_ZOMBIE_SPY : SKIN_ZOMBIE);
 	
-	int iWearable = CreateVoodooWearable(iClient, nClass);
-	if (iWearable != INVALID_ENT_REFERENCE)
-		TF2_EquipWeapon(iClient, iWearable);
+	int iWearable = TF2_CreateAndEquipWeapon(iClient, g_iVoodooIndex[view_as<int>(iClass)]); //Not really a weapon, but still works
+	if (iWearable > MaxClients)
+		SetEntProp(iWearable, Prop_Send, "m_nModelIndexOverrides", g_iZombieSoulIndex[view_as<int>(iClass)]);
 }
 
-stock int CreateVoodooWearable(int iClient, TFClassType nClass)
+stock int GetClassVoodooItemDefIndex(TFClassType iClass)
 {
-	int iWearable = TF2_CreateWeapon(iClient, g_iVoodooIndex[view_as<int>(nClass)]); //Not really a weapon, but still works
-	if (iWearable != INVALID_ENT_REFERENCE)
-		SetEntProp(iWearable, Prop_Send, "m_nModelIndexOverrides", g_iZombieSoulIndex[view_as<int>(nClass)]);
-	
-	return iWearable;
-}
-
-stock int GetClassVoodooItemDefIndex(TFClassType nClass)
-{
-	return g_iVoodooIndex[nClass];
+	return g_iVoodooIndex[iClass];
 }
 
 stock void AddWeaponVision(int iWeapon, int iFlag)
@@ -631,7 +622,7 @@ stock void SetTeamRespawnTime(TFTeam nTeam, float flTime)
 // Weapon
 ////////////////
 
-stock int TF2_CreateWeapon(int iClient, int iIndex, const char[] sAttribs = NULL_STRING, bool bAllowReskin = false)
+stock int TF2_CreateAndEquipWeapon(int iClient, int iIndex, const char[] sAttribs = NULL_STRING, bool bAllowReskin = false)
 {
 	TFClassType iClass = TF2_GetPlayerClass(iClient);
 	char sClassname[256];
@@ -655,7 +646,7 @@ stock int TF2_CreateWeapon(int iClient, int iIndex, const char[] sAttribs = NULL
 		Address pItem = SDKCall_GetLoadoutItem(iClient, iClass, iSlot);
 		
 		if (pItem && Config_GetOriginalItemDefIndex(LoadFromAddress(pItem+view_as<Address>(g_iOffsetItemDefinitionIndex), NumberType_Int16)) == iIndex)
-			iWeapon = SDKCall_GiveNamedItem(iClient, sClassname, iSubType, pItem);
+			iWeapon = SDKCall_GetBaseEntity(SDKCall_GiveNamedItem(iClient, sClassname, iSubType, pItem));
 	}
 	
 	if (iWeapon == -1)
@@ -689,30 +680,13 @@ stock int TF2_CreateWeapon(int iClient, int iIndex, const char[] sAttribs = NULL
 		}
 		
 		DispatchSpawn(iWeapon);
+		SetEntProp(iWeapon, Prop_Send, "m_bValidatedAttachedEntity", true);
+		
+		if (StrContains(sClassname, "tf_wearable") == 0)
+			SDKCall_EquipWearable(iClient, iWeapon);
+		else
+			EquipPlayerWeapon(iClient, iWeapon);
 	}
-	
-	return iWeapon;
-}
-
-stock void TF2_EquipWeapon(int iClient, int iWeapon)
-{
-	SetEntProp(iWeapon, Prop_Send, "m_bValidatedAttachedEntity", true);
-	
-	char sClassname[256];
-	GetEntityClassname(iWeapon, sClassname, sizeof(sClassname));
-	if (StrContains(sClassname, "tf_wearable") == 0)
-		SDKCall_EquipWearable(iClient, iWeapon);
-	else
-		EquipPlayerWeapon(iClient, iWeapon);
-}
-
-stock int TF2_CreateAndEquipWeapon(int iClient, int iIndex, const char[] sAttribs = NULL_STRING, bool bAllowReskin = false)
-{
-	int iWeapon = TF2_CreateWeapon(iClient, iIndex, sAttribs, bAllowReskin);
-	if (iWeapon == INVALID_ENT_REFERENCE)
-		return iWeapon;
-	
-	TF2_EquipWeapon(iClient, iWeapon);
 	
 	return iWeapon;
 }

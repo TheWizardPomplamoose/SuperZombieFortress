@@ -9,7 +9,7 @@ void Command_Init()
 	RegAdminCmd("sm_rage", Command_ZombieRage, ADMFLAG_CHANGEMAP, "(Try to) call a frenzy.");
 	RegAdminCmd("sm_infected", Command_ForceInfected, ADMFLAG_CHANGEMAP, "Force someone to become infected on next spawn.");
 	RegAdminCmd("sm_szfreload", Command_ReloadConfigs, ADMFLAG_RCON, "Reload SZF configs.");
-	RegAdminCmd("sm_stun", Command_Stun, ADMFLAG_RCON, "SZF Stun player.");
+	RegAdminCmd("sm_stun", Command_Stun, ADMFLAG_CHANGEMAP, "SZF Stun player.");
 	
 	RegConsoleCmd("sm_zf", Command_MainMenu);
 	RegConsoleCmd("sm_szf", Command_MainMenu);

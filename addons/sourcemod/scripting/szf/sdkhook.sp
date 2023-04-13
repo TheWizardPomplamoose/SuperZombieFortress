@@ -1,6 +1,3 @@
-static int g_iOffsetDisguiseCompleteTime;
-static float g_flDisguiseCompleteTime;
-
 void SDKHook_OnEntityCreated(int iEntity, const char[] sClassname)
 {
 	if (StrEqual(sClassname, "prop_dynamic") && g_nRoundState == SZFRoundState_Active)
@@ -25,7 +22,6 @@ void SDKHook_OnEntityCreated(int iEntity, const char[] sClassname)
 
 void SDKHook_HookClient(int iClient)
 {
-	SDKHook(iClient, SDKHook_PreThink, Client_PreThink);
 	SDKHook(iClient, SDKHook_PreThinkPost, Client_PreThinkPost);
 	SDKHook(iClient, SDKHook_Touch, Client_Touch);
 	SDKHook(iClient, SDKHook_OnTakeDamage, Client_OnTakeDamage);
@@ -34,28 +30,15 @@ void SDKHook_HookClient(int iClient)
 
 void SDKHook_UnhookClient(int iClient)
 {
-	SDKUnhook(iClient, SDKHook_PreThink, Client_PreThink);
 	SDKUnhook(iClient, SDKHook_PreThinkPost, Client_PreThinkPost);
 	SDKUnhook(iClient, SDKHook_Touch, Client_Touch);
 	SDKUnhook(iClient, SDKHook_OnTakeDamage, Client_OnTakeDamage);
 	SDKUnhook(iClient, SDKHook_GetMaxHealth, Client_GetMaxHealth);
 }
 
-public Action Client_PreThink(int iClient)
-{
-	if (!g_iOffsetDisguiseCompleteTime)
-		g_iOffsetDisguiseCompleteTime = FindSendPropInfo("CTFPlayer", "m_unTauntSourceItemID_High") + 4;
-	
-	g_flDisguiseCompleteTime = GetEntDataFloat(iClient, g_iOffsetDisguiseCompleteTime);
-	return Plugin_Continue;
-}
-
 public void Client_PreThinkPost(int iClient)
 {
 	UpdateClientCarrying(iClient);
-	
-	if (g_flDisguiseCompleteTime && !GetEntDataFloat(iClient, g_iOffsetDisguiseCompleteTime))
-		OnClientDisguise(iClient);
 }
 
 public Action Client_Touch(int iClient, int iToucher)
@@ -347,7 +330,7 @@ public Action GasManager_Touch(int iGasManager, int iClient)
 			int iOwner = GetEntPropEnt(iGasManager, Prop_Send, "m_hOwnerEntity");
 			
 			if (GetClientTeam(iClient) != GetClientTeam(iOwner))
-				TF2_MakeBleed(iClient, iOwner, 0.5);
+				TF2_MakeBleed(iClient, iOwner, 200.0);
 		}
 		
 		return Plugin_Handled;
