@@ -52,7 +52,7 @@ bool Stun_IsPlayerStunned(int iClient)
 	return g_StunInfo[iClient].bStunned;
 }
 
-bool Stun_StartPlayer(int iClient, float flDuration = 15.0)
+bool Stun_StartPlayer(int iClient, float flDuration = 6.0)
 {
 	if (g_StunInfo[iClient].bStunned || g_StunInfo[iClient].bCooldown)
 		return false;	//Already stunned
@@ -113,10 +113,7 @@ void Stun_EndPlayer(int iClient)
 	if (IsPlayerAlive(iClient))	//Keep grey screen if dead
 		ClientCommand(iClient, "r_screenoverlay\"\"");
 	
-	if(!IsValidEntity(g_StunInfo[iClient].iPreviousFogEnt))
-	{
-		SetEntPropEnt(iClient, Prop_Send, "m_PlayerFog.m_hCtrl", g_StunInfo[iClient].iPreviousFogEnt);
-	}
+	SetEntPropEnt(iClient, Prop_Send, "m_PlayerFog.m_hCtrl", g_StunInfo[iClient].iPreviousFogEnt);
 	g_StunInfo[iClient].iPreviousFogEnt = INVALID_ENT_REFERENCE;
 	g_StunInfo[iClient].bStunned = false;
 	delete g_StunInfo[iClient].aTimers;
@@ -173,7 +170,7 @@ void Stun_ClientThink(int iClient)
 		iFogEnt = EntIndexToEntRef(CreateEntityByName("env_fog_controller"));
 		DispatchKeyValue(iFogEnt, "fogstart", "256");
 		DispatchKeyValue(iFogEnt, "fogend", "512");
-		DispatchKeyValue(iFogEnt, "fogenable", "0");
+		DispatchKeyValue(iFogEnt, "fogenable", "1");
 		DispatchKeyValue(iFogEnt, "fogcolor", "0 0 0");
 		DispatchKeyValue(iFogEnt, "fogcolor2", "171 177 209");
 		

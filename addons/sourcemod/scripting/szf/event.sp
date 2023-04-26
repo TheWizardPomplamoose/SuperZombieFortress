@@ -294,8 +294,6 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 		else
 			Sound_PlayInfectedVo(iVictim, g_nInfected[iVictim], SoundVo_Death);
 		
-		Classes_SetClient(iVictim, Infected_None);
-		
 		//10%
 		if (IsValidSurvivor(iKillers[0]) && !GetRandomInt(0, 9) && g_nRoundState == SZFRoundState_Active)
 			g_bSpawnAsSpecialInfected[iVictim] = true;
@@ -418,7 +416,7 @@ public Action Event_PlayerBuiltObject(Event event, const char[] name, bool dontB
 		if (!GetEntProp(iEntity, Prop_Send, "m_bCarryDeploy"))
 		{
 			int iMaxHealth = GetEntProp(iEntity, Prop_Send, "m_iMaxHealth");
-			SetEntProp(iEntity, Prop_Send, "m_iMaxHealth", iMaxHealth * 3);	// Double max health (default level 1 is 150)
+			SetEntProp(iEntity, Prop_Send, "m_iMaxHealth", iMaxHealth * 2);	// Double max health (default level 1 is 150)
 		}
 		SetEntProp(iEntity, Prop_Send, "m_bCarried", 1);	// Disable healing/ammo and upgrading
 	}

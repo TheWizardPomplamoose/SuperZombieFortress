@@ -320,7 +320,7 @@ void Infected_DoBoomerExplosion(int iClient, float flRadius)
 			float flDistance = GetVectorDistance(vecClientPos, vecSurvivorPos);
 			if (flDistance <= flRadius)
 			{
-				float flDuration = 20.0 - (flDistance * 0.01);
+				float flDuration = 12.0 - (flDistance * 0.01);
 				TF2_AddCondition(i, TFCond_Jarated, flDuration);
 				Sound_PlayMusicToClient(i, "jarate", flDuration);
 				
@@ -383,6 +383,9 @@ public void Infected_OnChargerThink(int iClient, int &iButtons)
 		AnglesToVelocity(vecAngles, vecVel, 75.0);
 		AddVectors(vecOrigin, vecVel, vecOrigin);
 		
+		//Keep the charge meter at 100.0, so you never really run out of charge
+		SetEntPropFloat(iClient, Prop_Send, "m_flChargeMeter", 100.0);
+		
 		//Force push charger at stupid amount of speed, WEEEEEEEEEEEEEEEEEE
 		const float flSpeed = 520.0;
 		AnglesToVelocity(vecAngles, vecVel, flSpeed);
@@ -401,7 +404,6 @@ public void Infected_OnChargerThink(int iClient, int &iButtons)
 				GetClientAbsOrigin(iVictim, vecPosClient);
 				if (GetVectorDistance(vecOrigin, vecPosClient) <= 75.0)
 				{
-					TF2_StunPlayer(iVictim, 1.0, 0.5, TF_STUNFLAGS_GHOSTSCARE|TF_STUNFLAG_SLOWDOWN, 0);
 					TF2_AddCondition(iVictim, TFCond_LostFooting, 0.5);	//Allow push victims easier with friction
 					
 					vecVel[2] = 0.0;
@@ -464,13 +466,12 @@ public void Infected_DoScreamerRage(int iClient)
 			float flDistance = GetVectorDistance(vecPosScreamer, vecPosZombie);
 			if (flDistance <= 600.0)
 			{
-			TF2_AddCondition(i, TFCond_DefenseBuffed, 10.0 - flDistance / 120.0);
-			TF2_AddCondition(i, TFCond_SpeedBuffAlly, 10.0 - flDistance / 120.0);
-			Shake(i, 3.0, 3.0);
-			}
+				TF2_AddCondition(i, TFCond_DefenseBuffed, 7.0 - flDistance / 120.0);
+				Shake(i, 3.0, 3.0);
 			}
 		}
 	}
+}
 
 public void Infected_OnScreamerThink(int iClient, int &iButtons)
 {
@@ -689,7 +690,7 @@ void Infected_DoSmokerBeam(int iClient)
 		GetClientAbsOrigin(iHit, vecHitPos);
 		MakeVectorFromPoints(vecOrigin, vecHitPos, vecVelocity);
 		NormalizeVector(vecVelocity, vecVelocity);
-		ScaleVector(vecVelocity, fMin(-650.0 + GetClientHealth(iHit), -10.0) );
+		ScaleVector(vecVelocity, fMin(-450.0 + GetClientHealth(iHit), -10.0) );
 		TeleportEntity(iHit, NULL_VECTOR, NULL_VECTOR, vecVelocity);
 		
 		//If target changed, change stored target AND reset beam hit count
@@ -847,9 +848,9 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			GetClientEyeAngles(iTarget, vecTargetEye);
 			vecJockeyEye[2] = 0.0;
 			vecTargetEye[2] = 0.0;
-			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * 1.35);
-			AnglesToVelocity(vecTargetEye, vecTargetVel, flSpeed * 0.00);
-
+			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * g_cvJockeyMovementAttacker.FloatValue);
+			AnglesToVelocity(vecTargetEye, vecTargetVel, flSpeed * g_cvJockeyMovementVictim.FloatValue);
+			
 			AddVectors(vecJockeyVel, vecTargetVel, vecFinalVel);
 			TeleportEntity(iTarget, NULL_VECTOR, NULL_VECTOR, vecFinalVel);
 			
