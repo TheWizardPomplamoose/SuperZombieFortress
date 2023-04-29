@@ -427,6 +427,11 @@
 		"en"		"{orange}The Eyelander {red}makes you move 15%% slower."
 	}
 	
+	"PDA_InvisWatch"
+	{
+		"en"		"{orange}Instant uncloack."
+	}
+	
 	"Melee_ScotsmansSkullcutter"
 	{
 		"en"		"{orange}The Scotsman's Skullcutter {green}has its damage bonus increased to 30%%."
@@ -435,11 +440,6 @@
 	"Melee_KillingGlovesofBoxing"
 	{
 		"en"		"{orange}The Killing Gloves of Boxing {red}gives 5 seconds of minicrits on kill."
-	}
-	
-	"Melee_WarriorsSpirit"
-	{
-		"en"		"{orange}The Warrior's Spirit {red}has its health restored on kill decreased to +25."
 	}
 	
 	"Melee_FistsofSteel"
@@ -467,15 +467,36 @@
 		"en"		"{orange}The Amputator {red}does not heal in an area when taunting."
 	}
 	
+	"Melee_YourEternalReward"
+	{
+		"en"		"{green}No clock penalty drain."
+	}
+
 	"Melee_TribalmansShiv"
 	{
 		"en"		"{orange}The Tribalman's Shiv {green}has its damage penalty reduced to 20%%."
 	}
 	
-	"PDA_DeadRinger"
+	"PDA_DeadRinger" 
 	{
 		"en"		"{orange}The Dead Ringer {red}has no increased cloak duration."
 	}
+	
+	"Melee_Homewrecker" 
+	{
+		"en"		"{green}Slows enemy on hit."
+	}
+	
+	"Melee_HolidayPunch"
+	{
+		"en"		"{green}Crit on 3rd hit."
+	}
+	
+	"Melee_TheWrapAssassin"
+	{
+		"en"		"{green}Only 20% damage penalty."
+	}
+	
 	"PDA_CloakAndDagger"
 	{
 		"en"		"{orange}The Cloak and Dagger {red}is disabled."
