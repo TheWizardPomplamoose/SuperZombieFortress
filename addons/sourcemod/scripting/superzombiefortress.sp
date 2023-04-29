@@ -378,8 +378,6 @@ ConVar g_cvTankHealthMin;
 ConVar g_cvTankHealthMax;
 ConVar g_cvTankTime;
 ConVar g_cvTankStab;
-ConVar g_cvJockeyMovementVictim;
-ConVar g_cvJockeyMovementAttacker;
 ConVar g_cvFrenzyChance;
 ConVar g_cvFrenzyTankChance;
 ConVar g_cvStunImmunity;
@@ -1528,14 +1526,14 @@ void UpdateZombieDamageScale()
 	
 	//Lower damage scale as there are less survivors
 	float flSurvivorPercentage = float(iSurvivors) / float(iSurvivors + iZombies);
-	g_flZombieDamageScale = (g_flZombieDamageScale * flSurvivorPercentage * 0.6) + 0.5;
+	g_flZombieDamageScale = (g_flZombieDamageScale * flSurvivorPercentage * 0.68) + 0.5;
 	
 	//Get the amount of zombies killed since last survivor death
-	g_flZombieDamageScale += g_iZombiesKilledSpree * 0.004;
+	g_flZombieDamageScale += g_iZombiesKilledSpree * 0.007;
 	
 	//Zombie rage increases damage
 	if (g_bZombieRage)
-		g_flZombieDamageScale += 0.15;
+		g_flZombieDamageScale += 0.23;
 	
 	//If the last point is being captured, increase damage scale if lower than 100%
 	if (g_bCapturingLastPoint && g_flZombieDamageScale < 1.0 && !g_bSurvival)
