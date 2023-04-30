@@ -169,7 +169,7 @@ public void Infected_DoTankThrow(int iClient)
 	SetEntityModel(iDebris, debris.sModel);
 	
 	SetEntProp(iDebris, Prop_Send, "m_nSolidType", SOLID_VPHYSICS);
-	DispatchKeyValueFloat(iDebris, "massScale", 300.0);
+	DispatchKeyValueFloat(iDebris, "massScale", 800.0);
 	DispatchKeyValueFloat(iDebris, "modelscale", debris.flScale);
 	
 	SetEntPropEnt(iDebris, Prop_Send, "m_hOwnerEntity", iClient);
