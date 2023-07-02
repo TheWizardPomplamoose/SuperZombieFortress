@@ -401,6 +401,11 @@
 	{
 		"en"		"{orange}The Atomizer {green}pushes enemies back. {red}Triple jump and airborne minicrits are disabled."
 	}
+
+	"Melee_HotHand"
+	{
+		"en"		"{orange}The Hot Hand {green}gives you a speed boost on hit."
+	}
 	
 	"Melee_CandyCane"
 	{
@@ -490,6 +495,11 @@
 	"Melee_HolidayPunch"
 	{
 		"en"		"{green}Crit on 3rd hit."
+	}
+
+	"Melee_EvictionNotice"
+	{
+		"en"		"{orange}The Eviction Notice {red}has a damage penalty of 60%%"
 	}
 	
 	"Melee_TheWrapAssassin"
