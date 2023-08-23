@@ -22,8 +22,6 @@
 #define PLUGIN_VERSION				"4.5.0"
 #define PLUGIN_VERSION_REVISION		"manual"
 
-#define MAXPLAYERS		65	//32 clients + 1 for 0/world/console + 1 for replay/SourceTV
-
 #define ATTRIB_VISION		406
 
 // Also used in the item schema to define vision filter or vision mode opt in
