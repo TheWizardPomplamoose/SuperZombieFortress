@@ -333,7 +333,7 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 			if (g_flRageRespawnStress > GetGameTime())
 				flTimer += (g_flRageRespawnStress - GetGameTime()) * 1.2;
 			
-			g_flRageRespawnStress += 1.7;	//Add stress time 1.7 sec for every respawn zombies
+			g_flRageRespawnStress += 0.1;	//Add stress time 1.7 sec for every respawn zombies
 			CreateTimer(flTimer, Timer_RespawnPlayer, iVictim);
 		}
 		
