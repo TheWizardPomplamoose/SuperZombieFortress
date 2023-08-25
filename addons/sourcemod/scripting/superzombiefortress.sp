@@ -1711,7 +1711,7 @@ public Action OnCounterValue(const char[] sOutput, int iCaller, int iActivator, 
 	return Plugin_Continue;
 }
 
-void ZombieRage(float flDuration = 20.0, bool bIgnoreDirector = false)
+void ZombieRage(float flDuration = 30.0, bool bIgnoreDirector = false)
 {
 	if (g_nRoundState != SZFRoundState_Active)
 		return;

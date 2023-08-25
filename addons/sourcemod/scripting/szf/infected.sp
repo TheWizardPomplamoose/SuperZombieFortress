@@ -373,7 +373,7 @@ public void Infected_OnTankDeath(int iVictim, int iKiller, int iAssist)
 
 public void Infected_DoBoomerRage(int iClient)
 {
-	Infected_DoBoomerExplosion(iClient, 600.0);
+	Infected_DoBoomerExplosion(iClient, 700.0);
 }
 
 public Action Infected_OnBoomerAnim(int iClient, PlayerAnimEvent_t &nAnim, int &iData)
@@ -415,7 +415,7 @@ public Action Infected_OnBoomerAnim(int iClient, PlayerAnimEvent_t &nAnim, int &
 
 public void Infected_OnBoomerDeath(int iClient, int iKiller, int iAssist)
 {
-	Infected_DoBoomerExplosion(iClient, 400.0);
+	Infected_DoBoomerExplosion(iClient, 500.0);
 }
 
 void Infected_DoBoomerExplosion(int iClient, float flRadius)
@@ -442,7 +442,7 @@ void Infected_DoBoomerExplosion(int iClient, float flRadius)
 			float flDistance = GetVectorDistance(vecClientPos, vecSurvivorPos);
 			if (flDistance <= flRadius)
 			{
-				float flDuration = 12.0 - (flDistance * 0.01);
+				float flDuration = 15.0 - (flDistance * 0.01);
 				TF2_AddCondition(i, TFCond_Jarated, flDuration);
 				Sound_PlayMusicToClient(i, "jarate", flDuration);
 				
@@ -972,7 +972,7 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			GetClientEyeAngles(iTarget, vecTargetEye);
 			vecJockeyEye[2] = 0.0;
 			vecTargetEye[2] = 0.0;
-			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * 1.35);
+			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * 1.50);
 			AnglesToVelocity(vecTargetEye, vecTargetVel, flSpeed * 0.00);
 
 			AddVectors(vecJockeyVel, vecTargetVel, vecFinalVel);
