@@ -997,8 +997,8 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 
 public void Infected_OnJockeyTouch(int iClient, int iToucher)
 {
-	//Must not already be latched onto someone and be pouncing
-	if (0 < g_iJockeyTarget[iClient] <= MaxClients || !g_bJockeyIsUsingPounce[iClient] || !IsValidLivingSurvivor(iToucher))
+	//Already pouncing someone and must be in air to pounce
+	if (0 < g_iJockeyTarget[iClient] <= MaxClients || GetEntityFlags(iClient) & FL_ONGROUND || !IsValidLivingSurvivor(iToucher))
 		return;
 	
 	//Jockey must be higher enough than survivor to pounce it
