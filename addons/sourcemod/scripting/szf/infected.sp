@@ -999,7 +999,7 @@ public void Infected_OnJockeyTouch(int iClient, int iToucher)
 {
 	//Already pouncing someone and must be in air to pounce
 	if (0 < g_iJockeyTarget[iClient] <= MaxClients || GetEntityFlags(iClient) & FL_ONGROUND || !IsValidLivingSurvivor(iToucher))
-		return;
+		return; 
 	
 	//Jockey must be higher enough than survivor to pounce it
 	float vecJockeyEye[3], vecTargetEye[3];

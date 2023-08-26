@@ -1753,7 +1753,7 @@ void ZombieRage(float flDuration = 30.0, bool bIgnoreDirector = false)
 				if (IsZombie(iClient) && !IsPlayerAlive(iClient))
 				{
 					TF2_RespawnPlayer2(iClient);
-					g_flRageRespawnStress += 1.7;	//Add stress time 1.7 sec for every respawn zombies
+					g_flRageRespawnStress += 0.1;	//Add stress time 1.7 sec for every respawn zombies
 				}
 			}
 		}
