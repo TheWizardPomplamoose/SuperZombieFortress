@@ -97,6 +97,7 @@ public Action Infected_TankTimer(Handle hTimer, int iSerial)
 		return Plugin_Stop;
 	
 	TF2_AddCondition(iClient, TFCond_Kritzkrieged, 2.0);
+	TF2_AddCondition(iClient, TFCond_RuneStrength);
 	
 	//Tank super health handler
 	int iHealth = GetClientHealth(iClient);
@@ -142,20 +143,20 @@ public void Infected_DoTankThrow(int iClient)
 		case 2:
 		{
 			SDKCall_PlaySpecificSequence(iClient, "Throw_02");
-			flThrow = 1.5;
-			flEnd = 2.5;
+			flThrow = 1.3;
+			flEnd = 2.1;
 		}
 		case 3:
 		{
 			SDKCall_PlaySpecificSequence(iClient, "Throw_03");
-			flThrow = 1.5;
-			flEnd = 2.5;
+			flThrow = 1.3;
+			flEnd = 2.1;
 		}
 		case 4:
 		{
 			SDKCall_PlaySpecificSequence(iClient, "Throw_04");
-			flThrow = 1.5;
-			flEnd = 2.5;
+			flThrow = 1.3;
+			flEnd = 2.1;
 		}
 	}
 	
@@ -963,7 +964,7 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			//Make target bleeed with jockey on their head
 			if (!TF2_IsPlayerInCondition(iTarget, TFCond_Bleeding))
 				TF2_MakeBleed(iTarget, iClient, 0.5);
-				TF2_StunPlayer(iTarget, 1.0, 0.5, TF_STUNFLAGS_GHOSTSCARE|TF_STUNFLAG_SLOWDOWN, 0);
+				TF2_StunPlayer(iTarget, 1.0, 0.1, TF_STUNFLAGS_GHOSTSCARE|TF_STUNFLAG_SLOWDOWN, 0);
 				TF2_AddCondition(iTarget, TFCond_LostFooting, 0.9);
 			
 			float flSpeed = GetEntPropFloat(iTarget, Prop_Send, "m_flMaxspeed");
