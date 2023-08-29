@@ -964,6 +964,7 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			//Make target bleeed with jockey on their head
 			if (!TF2_IsPlayerInCondition(iTarget, TFCond_Bleeding))
 				TF2_MakeBleed(iTarget, iClient, 0.5);
+				Sound_PlayMusicToClient(iTarget, "jockeyed");
 				TF2_StunPlayer(iTarget, 1.0, 0.1, TF_STUNFLAGS_GHOSTSCARE|TF_STUNFLAG_SLOWDOWN, 0);
 				TF2_AddCondition(iTarget, TFCond_LostFooting, 0.9);
 			
