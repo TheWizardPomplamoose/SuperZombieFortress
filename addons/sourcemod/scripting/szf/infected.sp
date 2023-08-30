@@ -443,8 +443,9 @@ void Infected_DoBoomerExplosion(int iClient, float flRadius)
 			float flDistance = GetVectorDistance(vecClientPos, vecSurvivorPos);
 			if (flDistance <= flRadius)
 			{
-				float flDuration = 15.0 - (flDistance * 0.01);
+				float flDuration = 20.0 - (flDistance * 0.01);
 				TF2_AddCondition(i, TFCond_Jarated, flDuration);
+				TF2_AddCondition(i, TFCond_LostFooting, 0.5);
 				Sound_PlayMusicToClient(i, "jarate", flDuration);
 				
 				iClientsTemp[iCount] = i;
@@ -964,7 +965,7 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			//Make target bleeed with jockey on their head
 			if (!TF2_IsPlayerInCondition(iTarget, TFCond_Bleeding))
 				TF2_MakeBleed(iTarget, iClient, 0.5);
-				Sound_PlayMusicToClient(iTarget, "jockeyed");
+				Sound_PlayMusicToClient(i, "jockeyed", flDuration);
 				TF2_StunPlayer(iTarget, 1.0, 0.1, TF_STUNFLAGS_GHOSTSCARE|TF_STUNFLAG_SLOWDOWN, 0);
 				TF2_AddCondition(iTarget, TFCond_LostFooting, 0.9);
 			
