@@ -221,7 +221,7 @@ public Action Infected_DebrisTimer(Handle hTimer, int iDebris)
 	
 	float vecAngles[3], vecVel[3];
 	GetClientEyeAngles(iClient, vecAngles);
-	AnglesToVelocity(vecAngles, vecVel, 2000.0);
+	AnglesToVelocity(vecAngles, vecVel, 800.0);
 	TeleportEntity(iDebris, NULL_VECTOR, NULL_VECTOR, vecVel);
 	
 	return Plugin_Continue;
@@ -965,7 +965,6 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			//Make target bleeed with jockey on their head
 			if (!TF2_IsPlayerInCondition(iTarget, TFCond_Bleeding))
 				TF2_MakeBleed(iTarget, iClient, 0.5);
-				Sound_PlayMusicToClient(i, "jockeyed", flDuration);
 				TF2_StunPlayer(iTarget, 1.0, 0.1, TF_STUNFLAGS_GHOSTSCARE|TF_STUNFLAG_SLOWDOWN, 0);
 				TF2_AddCondition(iTarget, TFCond_LostFooting, 0.9);
 			
@@ -978,7 +977,7 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			vecJockeyEye[2] = 0.0;
 			vecTargetEye[2] = 0.0;
 			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * 1.25);
-			AnglesToVelocity(vecTargetEye, vecTargetVel, flSpeed * 0.00);
+			AnglesToVelocity(vecTargetEye, vecTargetVel, flSpeed * 0.15);
 
 			AddVectors(vecJockeyVel, vecTargetVel, vecFinalVel);
 			TeleportEntity(iTarget, NULL_VECTOR, NULL_VECTOR, vecFinalVel);
@@ -1016,7 +1015,7 @@ public void Infected_OnJockeyTouch(int iClient, int iToucher)
 	
 	g_bJockeyIsUsingPounce[iClient] = false;
 	g_iJockeyTarget[iClient] = iToucher;
-	Shake(iToucher, 3.0, 3.0);
+	Shake(iToucher, 6.0, 6.0);
 	
 	SetEntityMoveType(iClient, MOVETYPE_NONE);
 	SetEntProp(iClient, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_DEBRIS_TRIGGER);
