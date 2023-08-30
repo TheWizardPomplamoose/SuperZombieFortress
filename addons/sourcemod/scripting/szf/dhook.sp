@@ -225,6 +225,10 @@ public MRESReturn DHook_CalculateMaxSpeedPost(int iClient, DHookReturn hReturn)
 			//If under 50 health, tick away one speed per hp lost
 			if (GetClientHealth(iClient) < 50)
 				flSpeed -= 50.0 - float(GetClientHealth(iClient));
+				
+			//Movement speed decrease
+			if (TF2_IsPlayerInCondition(iClient, TFCond_Jarated))
+				flSpeed -= 50.0; //Jarate'd by sniper		
 		}
 		
 		if (Stun_IsPlayerStunned(iClient))

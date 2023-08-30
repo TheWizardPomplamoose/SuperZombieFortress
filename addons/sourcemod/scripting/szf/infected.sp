@@ -976,7 +976,7 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			GetClientEyeAngles(iTarget, vecTargetEye);
 			vecJockeyEye[2] = 0.0;
 			vecTargetEye[2] = 0.0;
-			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * 1.25);
+			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * 2.00);
 			AnglesToVelocity(vecTargetEye, vecTargetVel, flSpeed * 0.15);
 
 			AddVectors(vecJockeyVel, vecTargetVel, vecFinalVel);
