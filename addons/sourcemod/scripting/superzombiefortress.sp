@@ -1644,6 +1644,8 @@ void CheckLastSurvivor(int iIgnoredClient = 0)
 		return;
 	
 	TF2_AddCondition(iLastSurvivor, TFCond_KingRune, TFCondDuration_Infinite);
+	TF2_AddCondition(iLastSurvivor, TFCond_DefenseBuffNoCritBlock, TFCondDuration_Infinite);
+	TF2_AddCondition(iLastSurvivor,TFCond_RuneStrength, TFCondDuration_Infinite);
 	SetEntityHealth(iLastSurvivor, SDKCall_GetMaxHealth(iLastSurvivor));
 	
 	g_bLastSurvivor = true;

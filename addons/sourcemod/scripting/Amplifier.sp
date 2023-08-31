@@ -99,7 +99,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 public OnPluginStart()
 {
 	CreateConVar("amplifier_version", PLUGIN_VERSION, "The Amplifier Version", FCVAR_REPLICATED|FCVAR_NOTIFY);
-	cvarParticle = CreateConVar("amplifier_particle", "1", "Enable the Buffed Particle.", FCVAR_PLUGIN, true, 0.0, true, 1.0);
+	cvarParticle = CreateConVar("amplifier_particle", "1", "Enable the Buffed Particle.", FCVAR_PLUGIN, true, 1.0, true, 1.0);
 	cvarCondition = CreateConVar("amplifier_condition", "16", "Condition that The amplifier dispenses (11=full crits, 16=mini crits, etc...).", FCVAR_PLUGIN);
 	cvarPercent = CreateConVar("amplifier_percent", "100.0", "Percent chance of the amplifier applying the condition.", FCVAR_PLUGIN, true, 0.0, true, 100.0);
 	cvarDistance = CreateConVar("amplifier_distance", "200.0", "Distance the amplifier works.", FCVAR_PLUGIN);

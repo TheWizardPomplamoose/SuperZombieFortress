@@ -247,8 +247,8 @@ public Action Infected_DebrisStartTouch(int iDebris, int iToucher)
 	SDKCall_GetVelocity(iDebris, vecVelocity);
 	float flSpeed = GetVectorLength(vecVelocity);
 	
-	if (0 < iToucher <= MaxClients && flSpeed >= 800.0)
-		SDKHooks_TakeDamage(iToucher, iDebris, iClient, flSpeed / 300.0);
+	if (0 < iToucher <= MaxClients && flSpeed >= 300.0)
+		SDKHooks_TakeDamage(iToucher, iDebris, iClient, flSpeed / 40.0);
 	
 	return Plugin_Continue;
 }
@@ -446,6 +446,7 @@ void Infected_DoBoomerExplosion(int iClient, float flRadius)
 				float flDuration = 20.0 - (flDistance * 0.01);
 				TF2_AddCondition(i, TFCond_Jarated, flDuration);
 				TF2_AddCondition(i, TFCond_LostFooting, 0.5);
+				TF2_AddCondition(i, TFCond_Dazed, 0.5);
 				Sound_PlayMusicToClient(i, "jarate", flDuration);
 				
 				iClientsTemp[iCount] = i;
@@ -976,7 +977,7 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			GetClientEyeAngles(iTarget, vecTargetEye);
 			vecJockeyEye[2] = 0.0;
 			vecTargetEye[2] = 0.0;
-			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * 2.00);
+			AnglesToVelocity(vecJockeyEye, vecJockeyVel, flSpeed * 1.05);
 			AnglesToVelocity(vecTargetEye, vecTargetVel, flSpeed * 0.15);
 
 			AddVectors(vecJockeyVel, vecTargetVel, vecFinalVel);

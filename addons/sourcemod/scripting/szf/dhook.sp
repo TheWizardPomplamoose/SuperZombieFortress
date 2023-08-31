@@ -228,7 +228,7 @@ public MRESReturn DHook_CalculateMaxSpeedPost(int iClient, DHookReturn hReturn)
 				
 			//Movement speed decrease
 			if (TF2_IsPlayerInCondition(iClient, TFCond_Jarated))
-				flSpeed -= 50.0; //Jarate'd by sniper		
+				flSpeed -= 80.0; //Jarate'd by sniper
 		}
 		
 		if (Stun_IsPlayerStunned(iClient))
