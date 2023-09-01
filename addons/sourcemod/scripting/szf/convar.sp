@@ -18,7 +18,7 @@ void ConVar_Init()
 	g_cvTankHealth = CreateConVar("sm_szf_tank_health", "700", "Amount of health the Tank gets per alive survivor", _, true, 10.0);
 	g_cvTankHealthMin = CreateConVar("sm_szf_tank_health_min", "5000", "Minimum amount of health the Tank can spawn with", _, true, 0.0);
 	g_cvTankHealthMax = CreateConVar("sm_szf_tank_health_max", "20000", "Maximum amount of health the Tank can spawn with", _, true, 0.0);
-	g_cvTankTime = CreateConVar("sm_szf_tank_time", "20", "Adjusts the damage the Tank takes per second. 0 to disable.", _, true, 0.0);
+	g_cvTankTime = CreateConVar("sm_szf_tank_time", "15", "Adjusts the damage the Tank takes per second. 0 to disable.", _, true, 0.0);
 	g_cvTankStab = CreateConVar("sm_szf_tank_stab", "0.27", "% Damage dealt to the Tank from a backstab based on max health", _, true, 0.0);
 	g_cvFrenzyChance = CreateConVar("sm_szf_frenzy_chance", "0.0", "% Chance of a random frenzy", _, true, 0.0);
 	g_cvFrenzyTankChance = CreateConVar("sm_szf_frenzy_tank", "0.0", "% Chance of a Tank appearing instead of a frenzy", _, true, 0.0);

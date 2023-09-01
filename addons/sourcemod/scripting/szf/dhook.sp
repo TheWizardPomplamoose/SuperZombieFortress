@@ -215,7 +215,7 @@ public MRESReturn DHook_CalculateMaxSpeedPost(int iClient, DHookReturn hReturn)
 					case Infected_Stalker:
 					{
 						if (TF2_IsPlayerInCondition(iClient, TFCond_Cloaked))
-							flSpeed += 80.0;
+							flSpeed += 65.0;
 					}
 				}
 			}
