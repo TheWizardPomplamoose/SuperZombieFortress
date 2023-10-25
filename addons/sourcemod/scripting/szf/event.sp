@@ -234,9 +234,6 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 	
 	DropCarryingItem(iVictim);
 	
-	if (!bDeadRinger)
-		ViewModel_Destroy(iVictim);
-	
 	//Handle bonuses
 	if (!bDeadRinger && IsValidZombie(iKillers[0]) && iKillers[0] != iVictim)
 	{
@@ -338,7 +335,7 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 		}
 		
 		//Check for spec bypass from AFK manager
-		RequestFrame(Frame_CheckZombieBypass, iVictim);
+		RequestFrame(Frame_CheckZombieBypass, GetClientSerial(iVictim));
 	}
 	
 	//Instant respawn outside of the actual gameplay

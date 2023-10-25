@@ -6,7 +6,6 @@ static Handle g_hSDKCallGiveNamedItem;
 static Handle g_hSDKCallGetLoadoutItem;
 static Handle g_hSDKCallSetSpeed;
 static Handle g_hSDKCallTossJarThink;
-static Handle g_hSDKCallGetBaseEntity;
 static Handle g_hSDKCallGetVelocity;
 static Handle g_hSDKCallGetDefaultItemChargeMeterValue;
 
@@ -134,11 +133,6 @@ void SDKCall_SetSpeed(int iClient)
 void SDKCall_TossJarThink(int iEntity)
 {
 	SDKCall(g_hSDKCallTossJarThink, iEntity);
-}
-
-int SDKCall_GetBaseEntity(Address pEnt)
-{
-	return SDKCall(g_hSDKCallGetBaseEntity, pEnt);
 }
 
 void SDKCall_GetVelocity(int iEntity, float vecVelocity[3], Address pAngVelocity = Address_Null)

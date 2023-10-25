@@ -19,8 +19,10 @@
 
 #include "include/superzombiefortress.inc"
 
-#define PLUGIN_VERSION				"4.5.0"
+#define PLUGIN_VERSION				"4.6.2"
 #define PLUGIN_VERSION_REVISION		"manual"
+
+#define MAX_CONTROL_POINTS	8
 
 #define ATTRIB_VISION		406
 
@@ -270,15 +272,13 @@ enum struct ClientClasses
 	char sMenu[64];
 	char sWorldModel[PLATFORM_MAX_PATH];
 	char sViewModel[PLATFORM_MAX_PATH];
-	float vecViewModelAngles[3];
-	float flViewModelHeight;
+	bool bViewModelAnim;
 	char sSoundSpawn[PLATFORM_MAX_PATH];
 	int iRageCooldown;
 	Function callback_spawn;
 	Function callback_rage;
 	Function callback_think;
 	Function callback_touch;
-	Function callback_anim;
 	Function callback_death;
 	
 	//Infected
@@ -381,9 +381,11 @@ int g_iHorde[MAXPLAYERS];
 int g_iCapturingPoint[MAXPLAYERS];
 int g_iRageTimer[MAXPLAYERS];
 
-bool g_bStartedAsZombie[MAXPLAYERS];
 float g_flStopChatSpam[MAXPLAYERS];
 bool g_bWaitingForTeamSwitch[MAXPLAYERS];
+
+StringMap g_mRoundPlayedAsZombie;
+int g_iRoundPlayedCount;
 
 int g_iSprite; //Smoker beam
 
@@ -418,7 +420,7 @@ int g_iDamageDealtLife[MAXPLAYERS];
 float g_flDamageDealtAgainstTank[MAXPLAYERS];
 bool g_bTankRefreshed;
 
-int g_iControlPointsInfo[20][2];
+int g_iControlPointsInfo[MAX_CONTROL_POINTS][2];
 int g_iControlPoints;
 bool g_bCapturingLastPoint;
 int g_iCarryingItem[MAXPLAYERS] = {INVALID_ENT_REFERENCE, ...};
@@ -705,7 +707,7 @@ public void OnClientDisconnect(int iClient)
 	if (!g_bEnabled)
 		return;
 	
-	RequestFrame(CheckZombieBypass, iClient);
+	CheckZombieBypass(iClient);
 	
 	Sound_EndMusic(iClient);
 	DropCarryingItem(iClient);
@@ -787,7 +789,7 @@ public void TF2_OnConditionRemoved(int iClient, TFCond nCond)
 	SDKCall_SetSpeed(iClient);
 	
 	if (nCond == TFCond_Taunting)
-		ViewModel_Hide(iClient);
+		ViewModel_UpdateClient(iClient);	// taunting removes EF_NODRAW from weapon, readd it back
 	else if (nCond == TFCond_Disguised)
 		SetEntProp(iClient, Prop_Send, "m_nModelIndexOverrides", 0, _, VISION_MODE_ROME);	//Reset disguise model
 }
@@ -827,30 +829,11 @@ void EndGracePeriod()
 			RemoveEntity(iEntity);
 	}
 	
-	int iSurvivors = GetSurvivorCount();
-	int iZombies = GetZombieCount();
-	
-	//If less than 15% of players are infected, set round start as imbalanced
-	bool bImbalanced = (float(iZombies) / float(iSurvivors + iZombies) <= 0.15);
-	
 	for (int iClient = 1; iClient <= MaxClients; iClient++)
 	{
-		if (IsClientInGame(iClient))
+		if (IsClientInGame(iClient) && g_bWaitingForTeamSwitch[iClient])
 		{
-			if (g_bWaitingForTeamSwitch[iClient])
-				RequestFrame(Frame_PostGracePeriodSpawn, iClient); //A frame later so maps which have post-setup spawn points can adapt to these players
-			
-			//Give a buff to infected if the round is imbalanced
-			if (bImbalanced)
-			{
-				if (IsZombie(iClient) && IsPlayerAlive(iClient))
-				{
-					SetEntityHealth(iClient, 450);
-					g_bSpawnAsSpecialInfected[iClient] = true;
-				}
-				
-				CPrintToChat(iClient, "%t", "Grace_InfectedBoost", (IsZombie(iClient)) ? "{green}" : "{red}");
-			}
+			RequestFrame(Frame_PostGracePeriodSpawn, iClient); //A frame later so maps which have post-setup spawn points can adapt to these players
 		}
 	}
 	
@@ -858,6 +841,8 @@ void EndGracePeriod()
 	g_hTimerProgress = CreateTimer(6.0, Timer_Progress, _, TIMER_REPEAT);
 	
 	float flGameTime = GetGameTime();
+	int iSurvivors = GetSurvivorCount();
+	
 	g_flTankCooldown = flGameTime + 120.0 - fMin(0.0, (iSurvivors-12) * 3.0); //2 min cooldown before tank spawns will be considered
 	g_flSelectSpecialCooldown = flGameTime + 120.0 - fMin(0.0, (iSurvivors-12) * 3.0); //2 min cooldown before select special will be considered
 	g_flRageCooldown = flGameTime + 60.0 - fMin(0.0, (iSurvivors-12) * 1.5); //1 min cooldown before frenzy will be considered
@@ -880,6 +865,7 @@ public void Frame_PostGracePeriodSpawn(int iClient)
 	}
 	
 	g_bWaitingForTeamSwitch[iClient] = false;
+	SetClientStartedAsZombie(iClient);	// Client pretty much will play a whole round as zombie
 }
 
 ////////////////////////////////////////////////////////////
@@ -1449,9 +1435,10 @@ void SetGlow()
 	}
 }
 
-public void Frame_CheckZombieBypass(int iClient)
+void Frame_CheckZombieBypass(int iSerial)
 {
-	if (GetClientTeam(iClient) <= 1)
+	int iClient = GetClientFromSerial(iSerial);
+	if (TF2_GetClientTeam(iClient) <= TFTeam_Spectator)
 		CheckZombieBypass(iClient);
 }
 
@@ -1462,13 +1449,80 @@ void CheckZombieBypass(int iClient)
 	
 	//4 Checks
 	if ((g_flTimeStartAsZombie[iClient] != 0.0)						//Check if client is currently playing as zombie (if it 0.0, it means he have not played as zombie yet this round)
-		&& (g_flTimeStartAsZombie[iClient] > GetGameTime() - 90.0)	//Check if client have been playing zombie less than 90 seconds
-		&& (float(iZombies) / float(iSurvivors + iZombies) <= 0.6)	//Check if less than 60% of players is zombie
+		&& (g_flTimeStartAsZombie[iClient] > GetGameTime() - 60.0)	//Check if client have been playing zombie less than 60 seconds
+		&& (float(iZombies) / float(iSurvivors + iZombies) <= 0.5)	//Check if less than 50% of players is zombie
 		&& (g_nRoundState != SZFRoundState_End))								//Check if round did not end or map changing
 	{
 		g_bForceZombieStart[iClient] = true;
-		SetClientCookie(iClient, g_cForceZombieStart, "1");
+		
+		char sAuthId[64];
+		GetClientAuthId(iClient, AuthId_Steam2, sAuthId, sizeof(sAuthId));
+		
+		ArrayStack aStack = new ArrayStack(64);
+		aStack.PushString(sAuthId);
+		RequestFrame(Frame_SetForceZombieStart, aStack);
 	}
+}
+
+void Frame_SetForceZombieStart(ArrayStack aStack)
+{
+	char sAuthId[64];
+	aStack.PopString(sAuthId, sizeof(sAuthId));
+	delete aStack;
+	
+	// Check that round is still ongoing, client may've force disconnected from mapchange
+	if (g_nRoundState == SZFRoundState_Setup || g_nRoundState == SZFRoundState_End)
+		return;
+	
+	g_cForceZombieStart.SetByAuthId(sAuthId, "1");
+}
+
+int GetRoundPlayedAsZombie(int iClient)
+{
+	if (!g_mRoundPlayedAsZombie)
+		return 0;
+	
+	char sSteamId[64];
+	if (IsFakeClient(iClient))
+		IntToString(GetClientUserId(iClient), sSteamId, sizeof(sSteamId));
+	else
+		GetClientAuthId(iClient, AuthId_SteamID64, sSteamId, sizeof(sSteamId));
+	
+	int iValue;
+	g_mRoundPlayedAsZombie.GetValue(sSteamId, iValue);
+	return iValue;
+}
+
+void SetClientStartedAsZombie(int iClient)
+{
+	if (!g_mRoundPlayedAsZombie)
+		g_mRoundPlayedAsZombie = new StringMap();
+	
+	char sSteamId[64];
+	if (IsFakeClient(iClient))
+		IntToString(GetClientUserId(iClient), sSteamId, sizeof(sSteamId));
+	else
+		GetClientAuthId(iClient, AuthId_SteamID64, sSteamId, sizeof(sSteamId));
+	
+	g_mRoundPlayedAsZombie.SetValue(sSteamId, g_iRoundPlayedCount);
+}
+
+bool ClientStartedAsZombie(int iClient)
+{
+	return GetRoundPlayedAsZombie(iClient) == g_iRoundPlayedCount;
+}
+
+int Sort_LastPlayedZombie(int iClient1, int iClient2, const int[] iClients, Handle hData)
+{
+	int iRound1 = GetRoundPlayedAsZombie(iClient1);
+	int iRound2 = GetRoundPlayedAsZombie(iClient2);
+	
+	if (iRound1 > iRound2)
+		return -1;
+	else if (iRound1 < iRound2)
+		return 1;
+	else
+		return 0;
 }
 
 void UpdateZombieDamageScale()
@@ -1903,6 +1957,7 @@ void HandleSurvivorLoadout(int iClient)
 		return;
 	
 	CheckClientWeapons(iClient);
+	ViewModel_RemoveWearable(iClient);
 	
 	for (int iSlot = WeaponSlot_Melee; iSlot <= WeaponSlot_InvisWatch; iSlot++)
 	{
@@ -1968,9 +2023,6 @@ void HandleSurvivorLoadout(int iClient)
 	SetVariantString("");
 	AcceptEntityInput(iClient, "SetCustomModel");
 	
-	//Remove any existing viewmodels
-	ViewModel_Destroy(iClient);
-	
 	//Prevent Survivors with voodoo-cursed souls
 	SetEntProp(iClient, Prop_Send, "m_bForcedSkin", 0);
 	SetEntProp(iClient, Prop_Send, "m_nForcedSkin", 0);
@@ -1988,6 +2040,8 @@ void HandleZombieLoadout(int iClient)
 	while (g_ClientClasses[iClient].GetWeapon(iPos, weapon))
 		TF2_CreateAndEquipWeapon(iClient, weapon.iIndex, weapon.sAttribs);
 	
+	ViewModel_UpdateClient(iClient);
+	
 	if (g_ClientClasses[iClient].sWorldModel[0])
 	{
 		SetVariantString(g_ClientClasses[iClient].sWorldModel);
@@ -2003,19 +2057,8 @@ void HandleZombieLoadout(int iClient)
 		ApplyVoodooCursedSoul(iClient);
 	}
 	
-	ViewModel_Destroy(iClient);
-	
-	if (g_ClientClasses[iClient].sViewModel[0])
-	{
-		ViewModel_Create(iClient, g_ClientClasses[iClient].sViewModel, g_ClientClasses[iClient].vecViewModelAngles, g_ClientClasses[iClient].flViewModelHeight);
-		ViewModel_Hide(iClient);
-	}
-	
 	if (g_ClientClasses[iClient].bThirdperson)
-	{
-		SetEntProp(GetEntPropEnt(iClient, Prop_Send, "m_hViewModel"), Prop_Send, "m_fEffects", EF_NODRAW);
 		RequestFrame(SetThirdperson, GetClientSerial(iClient));
-	}
 	
 	//Reset metal for TF2 to give back correct amount from attribs
 	TF2_SetMetal(iClient, 0);
@@ -2024,7 +2067,10 @@ void HandleZombieLoadout(int iClient)
 	int iMelee = TF2_GetItemInSlot(iClient, WeaponSlot_Melee);
 	if (iMelee > MaxClients)
 	{
-		SetEntPropEnt(iClient, Prop_Send, "m_hActiveWeapon", iMelee);
+		TF2_SwitchActiveWeapon(iClient, iMelee);
+		if (g_ClientClasses[iClient].bViewModelAnim)	// needed for some reason for custom anims
+			ViewModel_SetAnimation(iClient, "ACT_FISTS_VM_DRAW");
+		
 		AddWeaponVision(iMelee, TF_VISION_FILTER_HALLOWEEN);	//Allow see Voodoo souls
 		AddWeaponVision(iMelee, TF_VISION_FILTER_ROME);			//Allow see spy's custom model disguise detour fix
 	}
