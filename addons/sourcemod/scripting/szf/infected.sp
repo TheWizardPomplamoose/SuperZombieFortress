@@ -28,20 +28,19 @@ public void Infected_DoNoRage(int iClient)
 static Handle g_hTimerTank[MAXPLAYERS];
 static float g_flTankLifetime[MAXPLAYERS];
 static int g_iTankHealthSubtract[MAXPLAYERS];
+static int g_iTankDebris[MAXPLAYERS] = {INVALID_ENT_REFERENCE, ...};
 
 public void Infected_OnTankSpawn(int iClient)
 {
-	if (g_flTankLifetime[iClient] < GetGameTime() - 0.5)	//Prevent multiple announces from spawnroom
-	{
-		//TAAAAANK
-		CPrintToChatAll("%t", "Tank_Spawn", "{red}");
-		Sound_PlayInfectedVoToAll(Infected_Tank, SoundVo_Fire);
-		
-		g_iTanksSpawned++;
-	}
+	//TAAAAANK
+	CPrintToChatAll("%t", "Tank_Spawn", "{red}");
+	Sound_PlayInfectedVoToAll(Infected_Tank, SoundVo_Fire);
+	
+	g_iTanksSpawned++;
 	
 	g_hTimerTank[iClient] = CreateTimer(1.0, Infected_TankTimer, GetClientSerial(iClient), TIMER_REPEAT);
 	g_flTankLifetime[iClient] = GetGameTime();
+	g_iTankDebris[iClient] = INVALID_ENT_REFERENCE;
 	
 	int iSurvivors = GetSurvivorCount();
 	int iHealth = g_cvTankHealth.IntValue * iSurvivors;
@@ -176,8 +175,9 @@ public void Infected_DoTankThrow(int iClient)
 	SetEntPropEnt(iDebris, Prop_Send, "m_hOwnerEntity", iClient);
 	SetEntProp(iDebris, Prop_Data, "m_spawnflags", SF_PHYSPROP_START_ASLEEP|SF_PHYSPROP_MOTIONDISABLED);
 	SetEntProp(iDebris, Prop_Data, "m_takedamage", DAMAGE_NO);
-	SetEntProp(iDebris, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
+	SetEntityCollisionGroup(iDebris, COLLISION_GROUP_PLAYER);
 	SetEntProp(iDebris, Prop_Send, "m_iTeamNum", GetClientTeam(iClient));
+	SetEntityRenderMode(iDebris, RENDER_TRANSCOLOR);
 	
 	int iBonemerge = CreateBonemerge(iClient, "debris");
 	
@@ -197,13 +197,29 @@ public void Infected_DoTankThrow(int iClient)
 	
 	SetEntPropFloat(iDebris, Prop_Data, "m_impactEnergyScale", 0.0);	//After DispatchSpawn, otherwise 1 would be set
 	
-	CreateTimer(flThrow, Infected_DebrisTimer, EntIndexToEntRef(iDebris));
+	g_iTankDebris[iClient] = EntIndexToEntRef(iDebris);
+	
+	CreateTimer(flThrow, Infected_DebrisTimer, GetClientSerial(iClient));
 }
 
-public Action Infected_DebrisTimer(Handle hTimer, int iDebris)
+public Action Infected_DebrisTimer(Handle hTimer, int iSerial)
 {
-	if (!IsValidEntity(iDebris))
+	int iClient = GetClientFromSerial(iSerial);
+	if (!IsValidClient(iClient) || !IsPlayerAlive(iClient))
 		return Plugin_Continue;
+	
+	Infected_ActivateDebris(iClient, true);
+	
+	return Plugin_Continue;
+}
+
+void Infected_ActivateDebris(int iClient, bool bVel)
+{
+	int iDebris = g_iTankDebris[iClient];
+	g_iTankDebris[iClient] = INVALID_ENT_REFERENCE;
+	
+	if (!IsValidEntity(iDebris))
+		return;
 	
 	AcceptEntityInput(iDebris, "ClearParent");
 	AcceptEntityInput(iDebris, "EnableMotion");
@@ -213,18 +229,21 @@ public Action Infected_DebrisTimer(Handle hTimer, int iDebris)
 	if (iBonemerge != INVALID_ENT_REFERENCE && IsClassname(iBonemerge, "tf_taunt_prop"))
 		RemoveEntity(iBonemerge);
 	
-	int iClient = GetEntPropEnt(iDebris, Prop_Send, "m_hOwnerEntity");
-	if (!IsValidClient(iClient))
-		return Plugin_Continue;
-	
 	SDKHook(iDebris, SDKHook_StartTouch, Infected_DebrisStartTouch);
 	
-	float vecAngles[3], vecVel[3];
-	GetClientEyeAngles(iClient, vecAngles);
-	AnglesToVelocity(vecAngles, vecVel, 2000.0);
-	TeleportEntity(iDebris, NULL_VECTOR, NULL_VECTOR, vecVel);
+	if (bVel)
+	{
+		float vecAngles[3], vecVel[3];
+		GetClientEyeAngles(iClient, vecAngles);
+		AnglesToVelocity(vecAngles, vecVel, 2000.0);
+		TeleportEntity(iDebris, NULL_VECTOR, NULL_VECTOR, vecVel);
+	}
 	
-	return Plugin_Continue;
+	CreateTimer(1.0, Infected_DebrisTimerMoving, iDebris, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+
+	float flLifetime = g_cvTankDebrisLifetime.FloatValue;
+	if (flLifetime > 0.0)
+		CreateTimer(flLifetime, Infected_DebrisTimerFadeOutStart, iDebris);
 }
 
 public Action Infected_DebrisTimerEnd(Handle hTimer, int iSerial)
@@ -237,6 +256,50 @@ public Action Infected_DebrisTimerEnd(Handle hTimer, int iSerial)
 	AcceptEntityInput(iClient, "SetForcedTauntCam");
 	
 	return Plugin_Continue;
+}
+
+public Action Infected_DebrisTimerMoving(Handle hTimer, int iDebris)
+{
+	if (!IsValidEntity(iDebris))
+		return Plugin_Stop;
+	
+	if (GetEntProp(iDebris, Prop_Send, "m_bAwake"))
+		return Plugin_Continue;
+	
+	SetEntityCollisionGroup(iDebris, COLLISION_GROUP_DEBRIS);
+	SetEntityMoveType(iDebris, MOVETYPE_NONE);
+	
+	return Plugin_Stop;
+}
+
+public Action Infected_DebrisTimerFadeOutStart(Handle hTimer, int iDebris)
+{
+	if (!IsValidEntity(iDebris))
+		return Plugin_Stop;
+	
+	SetEntityCollisionGroup(iDebris, COLLISION_GROUP_DEBRIS);
+	RequestFrame(Infected_DebrisFrameFadeOut, iDebris);
+	
+	return Plugin_Continue;
+}
+
+void Infected_DebrisFrameFadeOut(int iDebris)
+{
+	if (!IsValidEntity(iDebris))
+		return;
+	
+	int iColor[4];
+	GetEntityRenderColor(iDebris, iColor[0], iColor[1], iColor[2], iColor[3]);
+	
+	int iAlpha = iColor[3] - 10;
+	if (iAlpha <= 0)
+	{
+		RemoveEntity(iDebris);
+		return;
+	}
+	
+	SetEntityRenderColor(iDebris, .a = iAlpha);
+	RequestFrame(Infected_DebrisFrameFadeOut, iDebris);
 }
 
 public Action Infected_DebrisStartTouch(int iDebris, int iToucher)
@@ -253,13 +316,38 @@ public Action Infected_DebrisStartTouch(int iDebris, int iToucher)
 	return Plugin_Continue;
 }
 
-public void Infected_OnTankTouch(int iClient, int iToucher)
+public void Infected_OnTankThink(int iClient)
 {
-	if (IsClassname(iToucher, "func_respawnroom"))
+	if (!IsPlayerAlive(iClient))
+		return;
+	
+	// Force tank to block any CP being captured
+	int iTrigger = INVALID_ENT_REFERENCE;
+	while ((iTrigger = FindEntityByClassname(iTrigger, "trigger_capture_area")) != INVALID_ENT_REFERENCE)
 	{
-		//Reset lifetime so tank don't drain it's health while in spawnroom
-		if (!GetEntProp(iToucher, Prop_Data, "m_bDisabled") && GetEntProp(iToucher, Prop_Send, "m_iTeamNum") == GetClientTeam(iClient))
-			g_flTankLifetime[iClient] = GetGameTime();
+		static int iOffset = -1;
+		if (iOffset == -1)
+			iOffset = FindDataMapInfo(iTrigger, "m_flCapTime");
+		
+		TFTeam nCapturingTeam = view_as<TFTeam>(GetEntData(iTrigger, iOffset - 12));	// m_nCapturingTeam
+		float flTimeRemaining = GetEntDataFloat(iTrigger, iOffset + 4);	// m_fTimeRemaining
+		if (nCapturingTeam != TFTeam_Survivor || flTimeRemaining == 0.0)
+			continue;
+		
+		// Stop blocking CP if survivor captures has expired, as otherwise Tank would keep hogging the capture progress
+		int iCP = GetCapturePointFromTrigger(iTrigger);
+		int iIndex = GetEntProp(iCP, Prop_Data, "m_iPointIndex");
+		int iResource = FindEntityByClassname(INVALID_ENT_REFERENCE, "tf_objective_resource");
+		int iRequiredCappers = GetEntProp(iResource, Prop_Send, "m_iTeamReqCappers", _, (iIndex + (view_as<int>(TFTeam_Survivor) * MAX_CONTROL_POINTS)));
+		float flTimeToCap = GetEntPropFloat(iTrigger, Prop_Data, "m_flCapTime") * 2.0 * float(iRequiredCappers);
+		if (flTimeToCap < flTimeRemaining)
+			continue;
+		
+		// Filter usually have red-team only, we want tank to bypass the filter
+		int iFilter = GetEntPropEnt(iTrigger, Prop_Data, "m_hFilter");
+		SetEntPropEnt(iTrigger, Prop_Data, "m_hFilter", INVALID_ENT_REFERENCE);
+		AcceptEntityInput(iTrigger, "StartTouch", iClient, iClient);
+		SetEntPropEnt(iTrigger, Prop_Data, "m_hFilter", iFilter);
 	}
 }
 
@@ -267,6 +355,12 @@ public void Infected_OnTankDeath(int iVictim, int iKiller, int iAssist)
 {
 	g_hTimerTank[iVictim] = null;
 	g_iDamageZombie[iVictim] = 0;
+	
+	Infected_ActivateDebris(iVictim, false);	// Drop debris if tank were to hold one
+	
+	int iTrigger = INVALID_ENT_REFERENCE;
+	while ((iTrigger = FindEntityByClassname(iTrigger, "trigger_capture_area")) != INVALID_ENT_REFERENCE)
+		AcceptEntityInput(iTrigger, "EndTouch", iVictim, iVictim);
 	
 	if (0 < iKiller <= MaxClients && IsClientInGame(iKiller))
 	{
@@ -856,7 +950,7 @@ public void Infected_OnJockeyThink(int iClient, int &iButtons)
 			g_iJockeyTarget[iClient] = 0;
 			
 			SetEntityMoveType(iClient, MOVETYPE_WALK);
-			SetEntProp(iClient, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
+			SetEntityCollisionGroup(iClient, COLLISION_GROUP_PLAYER);
 		}
 	}
 }
@@ -880,7 +974,7 @@ public void Infected_OnJockeyTouch(int iClient, int iToucher)
 	Shake(iToucher, 6.0, 6.0);
 	
 	SetEntityMoveType(iClient, MOVETYPE_NONE);
-	SetEntProp(iClient, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_DEBRIS_TRIGGER);
+	SetEntityCollisionGroup(iClient, COLLISION_GROUP_DEBRIS_TRIGGER);
 	SDKCall_PlaySpecificSequence(iClient, "jockey_ride");
 }
 

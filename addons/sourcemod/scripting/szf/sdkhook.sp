@@ -1,5 +1,6 @@
 static int g_iOffsetDisguiseCompleteTime;
 static float g_flDisguiseCompleteTime;
+static bool g_bLunchboxTouched[MAXPLAYERS + 1];
 
 void SDKHook_OnEntityCreated(int iEntity, const char[] sClassname)
 {
@@ -34,6 +35,8 @@ void SDKHook_HookClient(int iClient)
 	SDKHook(iClient, SDKHook_OnTakeDamage, Client_OnTakeDamage);
 	SDKHook(iClient, SDKHook_GetMaxHealth, Client_GetMaxHealth);
 	SDKHook(iClient, SDKHook_WeaponSwitchPost, Client_WeaponSwitchPost);
+	
+	g_bLunchboxTouched[iClient] = false;
 }
 
 void SDKHook_UnhookClient(int iClient)
@@ -320,15 +323,32 @@ public Action Pickup_SandvichTouch(int iEntity, int iToucher)
 	if (iOwner == iToucher || g_nInfected[iToucher] == Infected_Tank)
 		return Plugin_Handled;
 	
+	//Don't stack lunchbox damages
+	if (g_bLunchboxTouched[iToucher])
+		return Plugin_Handled;
+	
 	if (IsSurvivor(iToucher))
 	{
 		//Kill it and deal damage
 		RemoveEntity(iEntity);
 		DealDamage(iOwner, iToucher, 55.0);
 		
+		g_bLunchboxTouched[iToucher] = true;
+		CreateTimer(2.0, Timer_ResetLunchboxTouched, GetClientUserId(iToucher));
+		
 		return Plugin_Handled;
 	}
 	
+	return Plugin_Continue;
+}
+
+public Action Timer_ResetLunchboxTouched(Handle hTimer, int iUserId)
+{
+	int iClient = GetClientOfUserId(iUserId);
+	if (iClient == 0)
+		return Plugin_Continue;
+	
+	g_bLunchboxTouched[iClient] = false;
 	return Plugin_Continue;
 }
 
@@ -342,6 +362,10 @@ public Action Pickup_BananaTouch(int iEntity, int iToucher)
 	if (g_nInfected[iToucher] == Infected_Tank)
 		return Plugin_Handled;
 	
+	//Don't stack lunchbox damages
+	if (g_bLunchboxTouched[iToucher])
+		return Plugin_Handled;
+	
 	if (IsSurvivor(iToucher))
 	{
 		int iOwner = GetEntPropEnt(iEntity, Prop_Send, "m_hOwnerEntity");
@@ -349,6 +373,9 @@ public Action Pickup_BananaTouch(int iEntity, int iToucher)
 		//Kill it and deal damage
 		RemoveEntity(iEntity);
 		DealDamage(iOwner, iToucher, 30.0);
+		
+		g_bLunchboxTouched[iToucher] = true;
+		CreateTimer(1.0, Timer_ResetLunchboxTouched, GetClientUserId(iToucher));
 		
 		return Plugin_Handled;
 	}
@@ -396,7 +423,8 @@ public Action CaptureArea_StartTouch(int iEntity, int iClient)
 {
 	if (IsValidClient(iClient) && IsPlayerAlive(iClient) && IsSurvivor(iClient))
 	{
-		int iIndex = GetTriggerCapturePointIndex(iEntity);
+		int iCP = GetCapturePointFromTrigger(iEntity);
+		int iIndex = GetEntProp(iCP, Prop_Data, "m_iPointIndex");
 		for (int j = 0; j < g_iControlPoints; j++)
 			if (g_iControlPointsInfo[j][0] == iIndex && g_iControlPointsInfo[j][1] != 2)	//Check if that capture have not already been captured
 				g_iCapturingPoint[iClient] = iIndex;
