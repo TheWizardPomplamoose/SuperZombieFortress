@@ -1,72 +1,79 @@
+//DragonLight edit: Disabled menu popups for engineers all the time, if you still want this uncomment line 121.
+//Also added int convar in to make it donator only, amplifier_donor (def. 0) 0 = All can use /amp command, 1 = Only people with admin reserved flag can use.
 #pragma semicolon 1
 
 #include <sourcemod>
 #include <sdktools>
 #include <tf2>
 #include <tf2_stocks>
-#include <colors>
+#include <morecolors>
+
+#pragma newdecls required
 
 #tryinclude "ztf2grab"
 
 #define MP 34
 #define ME 2048
 
-#define PLUGIN_VERSION "2.4"
+#define PLUGIN_VERSION "2.5"
 
-new g_BeamSprite;
-new g_HaloSprite;
+int g_BeamSprite;
+int g_HaloSprite;
 
-new bool:UseAmplifier[MP]=false;
-new bool:UseRepairNode[MP]=false;
-new bool:DontAsk[MP]=false;
-new bool:NearAmplifier[MP]=false;
-new bool:AmplifierOn[ME]=false;
-new bool:AmplifierSapped[ME]=false;
-new bool:ConditionApplied[ME][MP];
-new Float:AmplifierDistance[ME];
-new TFCond:AmplifierCondition[ME];
-new AmplifierPercent[ME];
-new BuildingRef[ME];
-new EngiAssists[MP]=0;
-new GetPar[MP];
+bool UseAmplifier[MP]={false, ...};
+bool UseRepairNode[MP]={false, ...};
+bool DontAsk[MP]={false, ...};
+bool NearAmplifier[MP]={false, ...};
+bool AmplifierOn[ME]={false, ...};
+bool AmplifierSapped[ME]={false, ...};
+bool ConditionApplied[ME][MP];
+float AmplifierDistance[ME];
+TFCond AmplifierCondition[ME];
+int AmplifierPercent[ME];
+int BuildingRef[ME];
+int EngiAssists[MP]={0, ...};
+int GetPar[MP];
 
-new Handle:cvarMetal = INVALID_HANDLE;
-new Handle:cvarMetalMax = INVALID_HANDLE;
-new Handle:cvarRegeneration = INVALID_HANDLE;
-new Handle:cvarDistance = INVALID_HANDLE;
-new Handle:cvarCondition = INVALID_HANDLE;
-new Handle:cvarParticle = INVALID_HANDLE;
-new Handle:cvarPercent = INVALID_HANDLE;
-new Handle:cvarWallBlock = INVALID_HANDLE;
-new Handle:cvarMiniCritToSG = INVALID_HANDLE;
-new Handle:cvarAnnounce = INVALID_HANDLE;
-new Handle:cvarNode = INVALID_HANDLE;
+Handle cvarAmpHealth = INVALID_HANDLE;
+Handle cvarMetal = INVALID_HANDLE;
+Handle cvarMetalMax = INVALID_HANDLE;
+Handle cvarRegeneration = INVALID_HANDLE;
+Handle cvarDistance = INVALID_HANDLE;
+Handle cvarCondition = INVALID_HANDLE;
+Handle cvarParticle = INVALID_HANDLE;
+Handle cvarPercent = INVALID_HANDLE;
+Handle cvarWallBlock = INVALID_HANDLE;
+Handle cvarMiniCritToSG = INVALID_HANDLE;
+Handle cvarAnnounce = INVALID_HANDLE;
+Handle cvarNode = INVALID_HANDLE;
+Handle cvarDonor = INVALID_HANDLE;
 
-new Handle:fwdOnAmplify = INVALID_HANDLE;
+Handle fwdOnAmplify = INVALID_HANDLE;
 
-new TFCond:DefaultCondition = TFCond_Kritzkrieged;
-new Float:DefaultDistance = 200.0;
-new bool:MiniCritToSG = true;
-new bool:ShowParticle = true;
-new bool:WallBlock = false;
-new bool:Node = false;
-new DefaultPercent = 100;
+TFCond DefaultCondition = TFCond_Kritzkrieged;
+float DefaultDistance = 200.0;
+bool MiniCritToSG = true;
+bool ShowParticle = true;
+bool WallBlock = false;
+bool Node = false;
+int DefaultPercent = 100;
 
-new MetalRegeneration = 10;
-new MetalPerPlayer = 5;
-new MetalMax = 400;
-new Revenges[MP]=0;				//for Engineers with Frontier Justice
-
-new bool:NativeControl = false;
-new TFCond:NativeCondition[MP];
-new Float:NativeDistance[MP];
-new NativePercent[MP];
+int MetalRegeneration = 10;
+int MetalPerPlayer = 5;
+int MetalMax = 400;
+int Revenges[MP]={0, ...};				//for Engineers with Frontier Justice
+int AmpHealth = 216;
+	
+bool NativeControl = false;
+TFCond NativeCondition[MP];
+float NativeDistance[MP];
+int NativePercent[MP];
 
 #define AmplifierModel "models/buildables/amplifier_test/amplifier"
 #define AmplifierTex "materials/models/buildables/amplifier_test/amplifier"
 #define AMPgib "models/buildables/amplifier_test/gibs/amp_gib"
 
-public Plugin:myinfo = {
+public Plugin myinfo = {
 	name = "The Amplifier",
 	author = "RainBolt Dash (plugin); Jumento M.D. (idea & model); Naris and FlaminSarge (helpers)",
 	description = "Adds The Amplifier (crit dispenser)",
@@ -82,7 +89,7 @@ public Plugin:myinfo = {
     #define TF2_IsCloaked(%1)           (((%1) & TF_CONDFLAG_CLOAKED) != TF_CONDFLAG_NONE)
 #endif
 
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	// Register Natives
 	CreateNative("ControlAmplifier",Native_ControlAmplifier);
@@ -96,27 +103,29 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	return APLRes_Success;
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	CreateConVar("amplifier_version", PLUGIN_VERSION, "The Amplifier Version", FCVAR_REPLICATED|FCVAR_NOTIFY);
-	cvarParticle = CreateConVar("amplifier_particle", "1", "Enable the Buffed Particle.", FCVAR_PLUGIN, true, 1.0, true, 1.0);
-	cvarCondition = CreateConVar("amplifier_condition", "16", "Condition that The amplifier dispenses (11=full crits, 16=mini crits, etc...).", FCVAR_PLUGIN);
-	cvarPercent = CreateConVar("amplifier_percent", "100.0", "Percent chance of the amplifier applying the condition.", FCVAR_PLUGIN, true, 0.0, true, 100.0);
-	cvarDistance = CreateConVar("amplifier_distance", "200.0", "Distance the amplifier works.", FCVAR_PLUGIN);
-	cvarRegeneration = CreateConVar("amplifier_regeneration", "15.0", "Amount of metal to regenerate per second.", FCVAR_PLUGIN);
-	cvarMetalMax = CreateConVar("amplifier_max", "400.0", "Maximum amount of metal an amplifier can hold.", FCVAR_PLUGIN);
-	cvarMetal = CreateConVar("amplifier_metal", "5.0", "Amount of metal to use to apply a condition to a player (per second).", FCVAR_PLUGIN);
-	cvarWallBlock = CreateConVar("amplifier_wallblock", "0", "Teammates can (0) or can not (1) get crits through walls, players, props etc", FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	cvarMiniCritToSG = CreateConVar("amplifier_sg_wrangler_mini-crit", "1", "Controlled (by Wrangler) SentryGun will get mini-crits, if engineer near AMP", FCVAR_PLUGIN, true, 0.0, true, 1.0);
-	cvarAnnounce = CreateConVar("amplifier_Announce", "150", "Info about AMP will show every N seconds", FCVAR_PLUGIN);
-	cvarNode = CreateConVar("amplifier_and_repairnode", "0", "Allow use Repair Node and AMP on 1 server without conflicts", FCVAR_PLUGIN, true, 0.0, true, 1.0);
-
+	cvarParticle = CreateConVar("amplifier_particle", "1", "Enable the Buffed Particle.", 0, true, 0.0, true, 1.0);
+	cvarCondition = CreateConVar("amplifier_condition", "16", "Condition that The amplifier dispenses (11=full crits, 16=mini crits, etc...).", 0);
+	cvarPercent = CreateConVar("amplifier_percent", "100.0", "Percent chance of the amplifier applying the condition.", 0, true, 0.0, true, 100.0);
+	cvarDistance = CreateConVar("amplifier_distance", "200.0", "Distance the amplifier works.", 0);
+	cvarRegeneration = CreateConVar("amplifier_regeneration", "15.0", "Amount of metal to regenerate per second.", 0);
+	cvarMetalMax = CreateConVar("amplifier_max", "400.0", "Maximum amount of metal an amplifier can hold.", 0);
+	cvarMetal = CreateConVar("amplifier_metal", "5.0", "Amount of metal to use to apply a condition to a player (per second).", 0);
+	cvarWallBlock = CreateConVar("amplifier_wallblock", "0", "Teammates can (0) or can not (1) get crits through walls, players, props etc", 0, true, 0.0, true, 1.0);
+	cvarMiniCritToSG = CreateConVar("amplifier_sg_wrangler_mini-crit", "1", "Controlled (by Wrangler) SentryGun will get mini-crits, if engineer near AMP", 0, true, 0.0, true, 1.0);
+	cvarAnnounce = CreateConVar("amplifier_Announce", "150", "Info about AMP will show every N seconds", 0);
+	cvarNode = CreateConVar("amplifier_and_repairnode", "0", "Allow use Repair Node and AMP on 1 server without conflicts", 0, true, 0.0, true, 1.0);
+	cvarDonor = CreateConVar("amplifier_donor", "0", "Allow amp to be used by donators or all players.", 0, true, 0.0, true, 1.0);
+	cvarAmpHealth = CreateConVar("amplifier_health", "216.0", "Amount of Health for Amplifier.", 1);
+	
 	HookEvent("player_builtobject", Event_Build);
 	CreateTimer(1.0, Timer_amplifier, _, TIMER_REPEAT);
 	//HookEvent("teamplay_round_start", event_RoundStart);
-	HookEvent("player_spawn", Event_player_spawn);
+	//HookEvent("player_spawn", Event_player_spawn); //Uncomment this line for default menu popup on engineer spawn. Commented out to disable auto asking.
 	//HookEntityOutput("obj_dispenser", "OnObjectHealthChanged", objectHealthChanged);
-	RegConsoleCmd("amplifier",        CallPanel, "Select 2nd engineer's building ");
+	//RegConsoleCmd("amplifier",        CallPanel, "Select 2nd engineer's building "); //Just want 1 command "amp"
 	RegConsoleCmd("amp",        CallPanel, "Select 2nd engineer's building ");
 	RegConsoleCmd("amp_help",        HelpPanel, "Show info about Amplifier");
 
@@ -134,6 +143,7 @@ public OnPluginStart()
 	HookConVarChange(cvarPercent, CvarChange);
 	HookConVarChange(cvarMetal, CvarChange);
 	HookConVarChange(cvarNode, CvarChange);
+	HookConVarChange(cvarAmpHealth, CvarChange);	
 	
 	//Fix conflicts with Repair Node (http://forums.alliedmods.net/showthread.php?p=1234359)
 	Node = GetConVarBool(cvarNode);
@@ -146,7 +156,7 @@ public OnPluginStart()
 	}
 }
 /*
-public OnLibraryAdded(const String:name[])
+public vpod OnLibraryAdded(const char[] name)
 {
     if (StrEqual(name, "repairnode"))
     {
@@ -159,14 +169,14 @@ public OnLibraryAdded(const String:name[])
     }
 }
 
-public OnLibraryRemoved(const String:name[])
+public void OnLibraryRemoved(const char[] name)
 {
     if (StrEqual(name, "repairnode"))
 	Node = false;
 }
 */
 
-public Action:Nodeon(client, args)
+public Action Nodeon(int client, int args)
 {	
 	if (!UseRepairNode[client])
 		RemoveDisp(client);
@@ -174,7 +184,7 @@ public Action:Nodeon(client, args)
 	return Plugin_Continue;
 }
 
-public Action:Nodeoff(client, args)
+public Action Nodeoff(int client, int args)
 {	
 	if (UseRepairNode[client])
 	{
@@ -185,16 +195,16 @@ public Action:Nodeoff(client, args)
 	return Plugin_Continue;
 }
 
-RemoveDisp(client,offnode=false)
+void RemoveDisp(int client,bool offnode=false)
 {
-	new String:classname[64];
-	new ent;
+	char classname[64];
+	int ent;
 	if (offnode && Node)
 	{
 		UseRepairNode[client]=false;		
 		FakeClientCommand(client, "nodeoff");		//Toggle Off Repair Node
 	}
-	for (new j=1;j<ME;j++)
+	for (int j=1;j<ME;j++)
 	{
 		ent=EntRefToEntIndex(BuildingRef[j]);
 		if (ent>0)
@@ -207,7 +217,7 @@ RemoveDisp(client,offnode=false)
 				AcceptEntityInput(ent, "RemoveHealth");
 				FakeClientCommand(client, "destroy 0");
 				
-				new Handle:event = CreateEvent("object_removed", true);
+				Handle event = CreateEvent("object_removed", true);
 				SetEventInt(event, "userid", GetClientUserId(client));
 				SetEventInt(event, "index", ent);
 				FireEvent(event);
@@ -217,7 +227,7 @@ RemoveDisp(client,offnode=false)
 	}
 }
 
-public CvarChange(Handle:convar, const String:oldValue[], const String:newValue[])
+public void CvarChange(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	if (convar == cvarMetal)
         	MetalPerPlayer = StringToInt(newValue);
@@ -228,18 +238,20 @@ public CvarChange(Handle:convar, const String:oldValue[], const String:newValue[
 	else if (convar == cvarDistance)
         	DefaultDistance = StringToFloat(newValue);
 	else if (convar == cvarCondition)
-        	DefaultCondition = TFCond:StringToInt(newValue);
+        	DefaultCondition = view_as<TFCond>(StringToInt(newValue));
 	else if (convar == cvarMiniCritToSG)
-        	MiniCritToSG = bool:StringToInt(newValue);
+        	MiniCritToSG = view_as<bool>(StringToInt(newValue));
 	else if (convar == cvarParticle)
-        	ShowParticle = bool:StringToInt(newValue);
+        	ShowParticle = view_as<bool>(StringToInt(newValue));
 	else if (convar == cvarWallBlock)
-        	WallBlock = bool:StringToInt(newValue);
+        	WallBlock = view_as<bool>(StringToInt(newValue));
 	else if (convar == cvarPercent)
         	DefaultPercent = StringToInt(newValue);
+	else if (convar == cvarAmpHealth)
+        	AmpHealth = StringToInt(newValue);		
 	else if (convar == cvarNode)
 	{
-		Node = bool:StringToInt(newValue);
+		Node = view_as<bool>(StringToInt(newValue));
 		if (Node)
 		{
 			RegConsoleCmd("nodeon", Nodeon);
@@ -248,9 +260,9 @@ public CvarChange(Handle:convar, const String:oldValue[], const String:newValue[
 	}
 }
 
-public OnConfigsExecuted()
+public void OnConfigsExecuted()
 {
-	DefaultCondition = TFCond:GetConVarInt(cvarCondition);
+	DefaultCondition = view_as<TFCond>(GetConVarInt(cvarCondition));
 	DefaultDistance = GetConVarFloat(cvarDistance);
 	DefaultPercent = GetConVarInt(cvarPercent);
 	MiniCritToSG = GetConVarBool(cvarMiniCritToSG);
@@ -261,17 +273,18 @@ public OnConfigsExecuted()
 	MetalRegeneration = GetConVarInt(cvarRegeneration);
 	MetalPerPlayer = GetConVarInt(cvarMetal);
 	MetalMax = GetConVarInt(cvarMetalMax);
+	AmpHealth = GetConVarInt(cvarAmpHealth);	
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
 	AddToDownload();
 
-	new String:strLine[256];
+	char strLine[256];
 	Format(strLine,256,"%s.mdl",AmplifierModel);
 	PrecacheModel(strLine, true);
 	PrecacheModel(strLine, false);
-	for (new i=1; i <=8; i++)
+	for (int i=1; i <=8; i++)
 	{
 		Format(strLine,256,"%s%i.mdl",AMPgib, i);
 		PrecacheModel(strLine, true);
@@ -280,44 +293,47 @@ public OnMapStart()
 	g_BeamSprite = PrecacheModel("materials/sprites/laser.vmt");
 	g_HaloSprite = PrecacheModel("materials/sprites/halo01.vmt");
 
-	new Float:time = GetConVarFloat(cvarAnnounce);
+	float time = GetConVarFloat(cvarAnnounce);
 	if (time > 0.0 && !NativeControl)
 		CreateTimer(time, Timer_Announce, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public OnClientAuthorized(client, const String:auth[])
+public void OnClientAuthorized(int client, const char[] auth)
 {
 	UseAmplifier[client]=false;
 	UseRepairNode[client]=false;
 	DontAsk[client]=false;
 }
 
-public Action:Timer_Announce(Handle:hTimer)
+public Action Timer_Announce(Handle hTimer)
 {
 	if (NativeControl || GetConVarFloat(cvarAnnounce) <= 0.0)
 		return Plugin_Stop;
 	else
+	{
 		CPrintToChatAll("%t", "AmplifierM");
+		//CPrintToChatAll("%t", "AmplifierN");
 
-	return Plugin_Continue;
+		return Plugin_Continue;
+	}
 }
 
-public AddToDownload()
+public void AddToDownload()
 {
-	new String:strLine[256];
-	new String:extensions[][] = {".mdl", ".dx80.vtx", ".dx90.vtx", ".sw.vtx", ".vvd", ".phy"};
-	new String:extensionsb[][] = {".vtf", ".vmt"};
-	for (new i=0; i < sizeof(extensions); i++)
+	char strLine[256];
+	char extensions[][] = {".mdl", ".dx80.vtx", ".dx90.vtx", ".sw.vtx", ".vvd", ".phy"};
+	char extensionsb[][] = {".vtf", ".vmt"};
+	for (int i=0; i < sizeof(extensions); i++)
 	{
 		Format(strLine,256,"%s%s",AmplifierModel,extensions[i]);
 		AddFileToDownloadsTable(strLine);
-		for (new j=1; j <=8; j++)
+		for (int j=1; j <=8; j++)
 		{
 			Format(strLine,256,"%s%i%s",AMPgib,j,extensions[i]);
 			AddFileToDownloadsTable(strLine);
 		}
 	}
-	for (new i=0; i < sizeof(extensionsb); i++)
+	for (int i=0; i < sizeof(extensionsb); i++)
 	{
 		Format(strLine,256,"%s%s",AmplifierTex,extensionsb[i]);
 		AddFileToDownloadsTable(strLine);
@@ -343,7 +359,7 @@ public AddToDownload()
 	Format(strLine,256,"%s.mdl",AmplifierModel);
 	PrecacheModel(strLine, true);
 	PrecacheModel(strLine, false);
-	for (new i=1; i <=8; i++)
+	for (int i=1; i <=8; i++)
 	{
 		Format(strLine,256,"%s%i.mdl",AMPgib,i);
 		PrecacheModel(strLine, true);
@@ -353,23 +369,23 @@ public AddToDownload()
 
 //Clean all Amplifiers' Data
 /*
-public Action:event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
+public Action event_RoundStart(Handle event, const char[] name, bool dontBroadcast)
 {
-	for (new i=1;i<GetClientCount();i++)
+	for (int i=1;i<GetClientCount();i++)
 	{
 		AmplifierEnt[i]=0;
-		for(new j=0;j<3;j++) 
+		for(int j=0;j<3;j++) 
 			AmplifierPos[j][i]=0.0;
 	}
 	return Plugin_Continue;
 }
 
-public objectHealthChanged(const String:output[], caller, activator, Float:delay)
+public objectHealthChanged(const char[] output, int caller, int activator, float delay)
 {
-	for (new i=1;i<MP;i++)
+	for (int i=1;i<MP;i++)
 	if ((EntRefToEntIndex(AmplifierEnt[i])==caller) && UseAmplifier[i])
 	{
-		new String:s[256];
+		char s[256];
 		Format(s,256,"%s%s",AmplifierModel,".mdl"); 
 		SetEntityModel(caller,s);
 		break;
@@ -379,27 +395,28 @@ public objectHealthChanged(const String:output[], caller, activator, Float:delay
 */
 
 //Show Panel to Engineer on spawn.
-public Action:Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_player_spawn(Handle event, const char[] name, bool dontBroadcast)
 {
 	if (!NativeControl)
 	{
-		new client=GetClientOfUserId(GetEventInt(event, "userid"));
+		int client=GetClientOfUserId(GetEventInt(event, "userid"));
 		if (!DontAsk[client])
 			AmpPanel(client);		
 	}
 	return Plugin_Continue;
 }
 
-public AmpHelpPanelH(Handle:menu, MenuAction:action, param1, param2)
+public int AmpHelpPanelH(Handle menu, MenuAction action, int param1, int param2)
 {
 	if(action == MenuAction_Select)
-		return;   
+		return 0;
+	return 0;
 }
   
-public Action:HelpPanel(client, Args)
+public Action HelpPanel(int client, int Args)
 {
-	new Handle:panel = CreatePanel();
-	new String:s[256];
+	Handle panel = CreatePanel();
+	char s[256];
 	SetGlobalTransTarget(client);
 	Format(s,256,"%t","Amplifier1");
 	SetPanelTitle(panel, s);
@@ -414,10 +431,12 @@ public Action:HelpPanel(client, Args)
 	DrawPanelItem(panel, "Close Menu");  
 	SendPanelToClient(panel, client, AmpHelpPanelH, 16);
 	CloseHandle(panel);
+	
+	return Plugin_Handled;
 }
 
 //Show Panel to Enginner on command
-public Action:CallPanel(client, Args)
+public Action CallPanel(int client, int Args)
 {
 	if (!NativeControl)
 		AmpPanel(client);
@@ -426,13 +445,20 @@ public Action:CallPanel(client, Args)
 }
 
 //Panel's procedure
-public AmpPanel(client)
+public int AmpPanel(int client)
 {		
 	if (NativeControl || TF2_GetPlayerClass(client) != TFClass_Engineer)
-		return;// Plugin_Continue;
+		return 0;// Plugin_Continue;
+	
+	AdminId admin = GetUserAdmin(client);
+	if(GetConVarInt(cvarDonor) == 1 && !GetAdminFlag(admin, Admin_Reservation))
+	{
+		CPrintToChat(client,"Only donors may access this command.");
+		return 0;
+	}
 		
-	new Handle:panel = CreatePanel();
-	new String:str[256];
+	Handle panel = CreatePanel();
+	char str[256];
 	SetGlobalTransTarget(client);
 	Format(str,256,"%t","AmplifierA");
 	//str="Selct your 2nd building";
@@ -456,11 +482,13 @@ public AmpPanel(client)
 	
 	SendPanelToClient(panel, client, AmpPanelH, 20);
 	CloseHandle(panel); 
-	//return Plugin_Continue;	
+	//return Plugin_Continue;
+	
+	return 0;
 }
 
 //Panel's Handle Procedure
-public AmpPanelH(Handle:menu, MenuAction:action, param1, param2)
+public int AmpPanelH(Handle menu, MenuAction action, int param1, int param2)
 {
 	if (action == MenuAction_Select)
 	{
@@ -501,6 +529,7 @@ public AmpPanelH(Handle:menu, MenuAction:action, param1, param2)
 			FakeClientCommand(param1, "nodeoff");		//Toggle Off Repair Node
 		//FakeClientCommand(param1, "LucyCharm");		//Coming Soon: Lucy Charm
 	}
+	return 0;	
 }
 
 //Main timer:
@@ -508,15 +537,16 @@ public AmpPanelH(Handle:menu, MenuAction:action, param1, param2)
 //--Spawn (Remove) crit effects on players. 
 //--Disable Amplifiers when they dying
 //--WAVES
-public Action:Timer_amplifier(Handle:hTimer)
+public Action Timer_amplifier(Handle hTimer)
 {
-	new Float:Pos[3];
-	new Float:AmplifierPos[3];
-	new TFTeam:clientTeam;
-	new TFTeam:team;
-	new i,client;
-	new maxEntities = GetMaxEntities();
-	new String:modelname[256];
+	float Pos[3];
+	float AmplifierPos[3];
+	TFTeam clientTeam;
+	TFTeam team;
+	int i;
+	int client;
+	int maxEntities = GetMaxEntities();
+	char modelname[256];
 	for(client=1;client<=MaxClients;client++)
 	{
 		if (IsClientInGame(client)) 
@@ -525,11 +555,11 @@ public Action:Timer_amplifier(Handle:hTimer)
 			if (IsPlayerAlive(client) && IsValidEdict(client)) 
 			{
 				GetEntPropVector(client, Prop_Send, "m_vecOrigin", Pos);  //Get player's position
-				clientTeam=TFTeam:GetClientTeam(client);
+				clientTeam=view_as<TFTeam>(GetClientTeam(client));
 
 				for(i=1;i<maxEntities;i++) //See all Amplifiers
 				{
-					new amp = EntRefToEntIndex(BuildingRef[i]);
+					int amp = EntRefToEntIndex(BuildingRef[i]);
 					if (amp>0)
 						GetEntPropString(i, Prop_Data, "m_ModelName", modelname, 128);
 					if ((amp>0) && (StrContains(modelname,"plifier")>-1))	//Force off AMP's effect on Dispenser and Rep.Node
@@ -538,17 +568,17 @@ public Action:Timer_amplifier(Handle:hTimer)
 						if (AmplifierOn[amp] && !AmplifierSapped[amp])
 						{
 							// Check Metal
-							new metal = GetEntProp(amp, Prop_Send, "m_iAmmoMetal");
+							int metal = GetEntProp(amp, Prop_Send, "m_iAmmoMetal");
 							if (metal < MetalPerPlayer && MetalPerPlayer > 0)
 								continue;
 	
 							// Check Percent Chance
-							new percent = AmplifierPercent[amp];
+							int percent = AmplifierPercent[amp];
 							if (percent < 100 && (ConditionApplied[amp][client] || GetRandomInt(1,100) > percent))
 								continue;
 
-							new bool:enableParticle;
-							new TFCond:Condition = AmplifierCondition[amp];
+							bool enableParticle;
+							TFCond Condition = AmplifierCondition[amp];
 							switch (Condition)
 							{
 								case TFCond_Ubercharged, TFCond_Kritzkrieged, TFCond_Buffed,
@@ -557,24 +587,24 @@ public Action:Timer_amplifier(Handle:hTimer)
 									TFCond_CritOnKill, TFCond_HalloweenCritCandy, TFCond_DefenseBuffed:
 								{
 									enableParticle = (Condition != TFCond_Buffed && Condition != TFCond_DefenseBuffed && Condition != TFCond_MegaHeal) && ShowParticle;
-									team = TFTeam:GetEntProp(amp, Prop_Send, "m_iTeamNum");
+									team = view_as<TFTeam>(GetEntProp(amp, Prop_Send, "m_iTeamNum"));
 								}
 								case TFCond_Slowed, TFCond_Zoomed, TFCond_TeleportedGlow, TFCond_Taunting,
 									TFCond_Bonked, TFCond_Dazed, TFCond_OnFire, TFCond_Jarated, TFCond_Milked, TFCond_MarkedForDeath, TFCond_RestrictToMelee,
 									TFCond_Disguised, TFCond_Cloaked, TFCond_CloakFlicker:
 								{
 									enableParticle = false;
-									team = (TFTeam:GetEntProp(amp, Prop_Send, "m_iTeamNum") == TFTeam_Red)
+									team = (view_as<TFTeam>(GetEntProp(amp, Prop_Send, "m_iTeamNum")) == TFTeam_Red)
 										? TFTeam_Blue : TFTeam_Red;
 								}
 								default:
 								{
 									enableParticle = false;
-									team = TFTeam:GetEntProp(amp, Prop_Send, "m_iTeamNum");
+									team = view_as<TFTeam>(GetEntProp(amp, Prop_Send, "m_iTeamNum"));
 								}
 							}
 							//Spy can use enemies' Amplifier
-							//new pcond = TF2_GetPlayerConditionFlags(client);
+							//int pcond = TF2_GetPlayerConditionFlags(client);
 							if ((TF2_GetPlayerClass(client) == TFClass_Spy) && TF2_IsPlayerInCondition(client, TFCond_Disguised) && !TF2_IsPlayerInCondition(client, TFCond_Cloaked))
 							{
 								team=clientTeam;
@@ -586,8 +616,8 @@ public Action:Timer_amplifier(Handle:hTimer)
 								GetVectorDistance(Pos,AmplifierPos) <= AmplifierDistance[amp] &&
 								(!WallBlock || TraceTargetIndex(amp, client, AmplifierPos, Pos)))
 							{
-								new Action:res = Plugin_Continue;
-								new builder = GetEntPropEnt(amp, Prop_Send, "m_hBuilder");
+								Action res = Plugin_Continue;
+								int builder = GetEntPropEnt(amp, Prop_Send, "m_hBuilder");
 	
 								Call_StartForward(fwdOnAmplify);
 								Call_PushCell(builder);
@@ -602,7 +632,7 @@ public Action:Timer_amplifier(Handle:hTimer)
 								if (enableParticle)
 								{
 									//If Crit Effect does NOT Exist
-									new particle = EntRefToEntIndex(GetPar[client]);
+									int particle = EntRefToEntIndex(GetPar[client]);
 									if (particle==0 || !IsValidEntity(particle))
 									{
 										//Create Buffed Effect
@@ -613,7 +643,7 @@ public Action:Timer_amplifier(Handle:hTimer)
 										GetPar[client] = EntIndexToEntRef(particle);
 									}
 								}
-								new String:weapon[64];
+								char weapon[64];
 								GetClientWeapon(client, weapon, 64); 
 
 								//Set condition to player
@@ -639,7 +669,7 @@ public Action:Timer_amplifier(Handle:hTimer)
 										SetEntProp(GetPlayerWeaponSlot(client, TFWeaponSlot_Primary), Prop_Send, "m_iWeaponState", 0);
 										TF2_RemoveCondition(client, TFCond_Slowed);
 									}
-									new melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
+									int melee = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
 									if (melee > MaxClients && IsValidEntity(melee)) SetEntPropEnt(client, Prop_Send, "m_hActiveWeapon", melee);
 								}
 								else if ((Condition == TFCond_Kritzkrieged) && (TF2_GetPlayerClass(client) == TFClass_Engineer) && StrEqual(weapon, "tf_weapon_sentry_revenge"))
@@ -669,7 +699,7 @@ public Action:Timer_amplifier(Handle:hTimer)
 						if (amp > 0 && !NearAmplifier[client] && ConditionApplied[amp][client])
 						{
 							ConditionApplied[amp][client]=false;
-							new String:weapon[64];
+							char weapon[64];
 							GetClientWeapon(client, weapon, 64); 
 							if (MiniCritToSG && (TF2_GetPlayerClass(client) == TFClass_Engineer) && StrEqual(weapon, "tf_weapon_laser_pointer") && (AmplifierCondition[amp]!=TFCond_Buffed))
 							TF2_RemoveCondition(client, TFCond_Buffed);							
@@ -688,7 +718,7 @@ public Action:Timer_amplifier(Handle:hTimer)
 			if ((i==maxEntities) || !IsPlayerAlive(client))
 			{
 				//if player has crit effect - delete it
-				new particle = EntRefToEntIndex(GetPar[client]);
+				int particle = EntRefToEntIndex(GetPar[client]);
 				if (particle != 0 && IsValidEntity(particle))
 				{
 					RemoveEdict(particle);
@@ -701,10 +731,10 @@ public Action:Timer_amplifier(Handle:hTimer)
 	//Amplifier's waves
 	for(i=1;i<maxEntities;i++)
 	{
-		new ref = BuildingRef[i];
+		int ref = BuildingRef[i];
 		if (ref != 0)
 		{
-			new ent = EntRefToEntIndex(ref);
+			int ent = EntRefToEntIndex(ref);
 			if (ent > 0)
 			{
 				GetEntPropString(ent, Prop_Data, "m_ModelName", modelname, 128);	
@@ -714,7 +744,7 @@ public Action:Timer_amplifier(Handle:hTimer)
 					if (GetEntProp(ent, Prop_Send, "m_bDisabled")==0)
 						SetEntProp(ent, Prop_Send, "m_bDisabled", 1);
 							
-					new metal=GetEntProp(ent, Prop_Send, "m_iUpgradeMetal")*(MetalMax/200);
+					int metal=GetEntProp(ent, Prop_Send, "m_iUpgradeMetal")*(MetalMax/200);
 					
 					if (metal>0)
 					{
@@ -737,7 +767,7 @@ public Action:Timer_amplifier(Handle:hTimer)
 					else
 						metal = 255;
 
-					new beamColor[4];
+					int beamColor[4];
 					switch (AmplifierCondition[ent])
 					{
 					    case TFCond_Slowed, TFCond_Zoomed, TFCond_Disguised, TFCond_Cloaked, TFCond_CloakFlicker, TFCond_TeleportedGlow, TFCond_Taunting,
@@ -749,7 +779,7 @@ public Action:Timer_amplifier(Handle:hTimer)
 					    //     TFCond_DemoBuff, TFCond_Charging:
 					    default:
 					    {
-							if (TFTeam:GetEntProp(ent, Prop_Send, "m_iTeamNum")==TFTeam_Red)
+							if (view_as<TFTeam>(GetEntProp(ent, Prop_Send, "m_iTeamNum"))==TFTeam_Red)
 								beamColor = {255, 75, 75, 255}; // Red
 							else
 								beamColor = {75, 75, 255, 255}; // Blue
@@ -785,34 +815,33 @@ public Action:Timer_amplifier(Handle:hTimer)
 	}
 	return Plugin_Continue;
 }
-stock TF2_IsCritCondition(TFCond:cond)
+stock int TF2_IsCritCondition(TFCond cond)
 {
 	switch (cond)
 	{
-		case TFCond_Kritzkrieged, TFCond_HalloweenCritCandy, (TFCond:34), (TFCond:35), TFCond_CritOnFirstBlood, TFCond_CritOnWin, TFCond_CritOnFlagCapture, TFCond_CritOnKill: return true;
+		case TFCond_Kritzkrieged, TFCond_HalloweenCritCandy, (view_as<TFCond>(34)), (view_as<TFCond>(35)), TFCond_CritOnFirstBlood, TFCond_CritOnWin, TFCond_CritOnFlagCapture, TFCond_CritOnKill: return true;
 		default: return false;
 	}
-	return false;
 }
 //Add scores for engi for assist by Amplifier
-public Action:event_player_death(Handle:event, const String:name[], bool:dontBroadcast)
+public Action event_player_death(Handle event, const char[] name, bool dontBroadcast)
 {
-	//new Float:Pos[3];
-	//new Float:AmplifierPos[3];
-	new Victim = GetClientOfUserId(GetEventInt(event,"userid"));
-	new Attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	//float Pos[3];
+	//float AmplifierPos[3];
+	int Victim = GetClientOfUserId(GetEventInt(event,"userid"));
+	int Attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if (NearAmplifier[Attacker] || NearAmplifier[Victim])
 	{
-		new maxEntities = GetMaxEntities();
-		for(new i=1;i<maxEntities;i++)
+		int maxEntities = GetMaxEntities();
+		for(int i=1;i<maxEntities;i++)
 		{
-			new ent = EntRefToEntIndex(BuildingRef[i]);
+			int ent = EntRefToEntIndex(BuildingRef[i]);
 			if (ent > 0 && AmplifierOn[ent] && !AmplifierSapped[ent] && (Attacker!=i))
 			{
 				//GetEntPropVector(Attacker, Prop_Send, "m_vecOrigin", Pos);
 				//GetEntPropVector(ent, Prop_Send, "m_vecOrigin", AmplifierPos);
 				//if (GetVectorDistance(Pos,AmplifierPos)<=AmplifierDistance[ent])
-				new bool:assist;
+				bool assist;
 				switch (AmplifierCondition[ent])
 				{
 					case TFCond_Slowed, TFCond_Zoomed, TFCond_TeleportedGlow, TFCond_Taunting,
@@ -826,13 +855,13 @@ public Action:event_player_death(Handle:event, const String:name[], bool:dontBro
 
 				if (assist)
 				{
-					new builder = GetEntPropEnt(ent, Prop_Send, "m_hBuilder");
+					int builder = GetEntPropEnt(ent, Prop_Send, "m_hBuilder");
 					if (builder > 0)
 					{
 						EngiAssists[builder]++;
 						if (EngiAssists[builder]>=4)
 						{
-							new Handle:aevent = CreateEvent("player_escort_score", true) ;
+							Handle aevent = CreateEvent("player_escort_score", true) ;
 							SetEventInt(aevent, "player", builder);
 							SetEventInt(aevent, "points", 1);
 							FireEvent(aevent);
@@ -849,19 +878,19 @@ public Action:event_player_death(Handle:event, const String:name[], bool:dontBro
 
 
 //Detect building
-public Action:Event_Build(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_Build(Handle event, const char[] name, bool dontBroadcast)
 {
-	new ent = GetEventInt(event, "index");
+	int ent = GetEventInt(event, "index");
 	CheckDisp(ent);
 	CheckSapper(ent);
 	return Plugin_Continue;
 }
 
 //if building is dispenser
-CheckDisp(ent)
+int CheckDisp(int ent)
 {
-	new String:classname[64];
-	new Client=GetEntPropEnt(ent, Prop_Send, "m_hBuilder");
+	char classname[64];
+	int Client=GetEntPropEnt(ent, Prop_Send, "m_hBuilder");
 	GetEdictClassname(ent, classname, sizeof(classname));
 	if (!strcmp(classname, "obj_dispenser"))
 	{	  
@@ -872,9 +901,9 @@ CheckDisp(ent)
 			SetEntProp(ent, Prop_Send, "m_bDisabled", 1);
 		}
 		if ((Client <= 0) || !UseAmplifier[Client]) //Don't create Amplifier if player don't want it...or has Repair Node
-			return;// Plugin_Continue;
+			return 0;// Plugin_Continue;
 		
-		new Float:pos[3];
+		float pos[3];
 		GetEntPropVector(ent, Prop_Send, "m_vecOrigin", pos);  
 		AmplifierOn[ent]=false;
 		SetEntProp(ent, Prop_Send, "m_bDisabled", 1);
@@ -882,18 +911,20 @@ CheckDisp(ent)
 		AmplifierPercent[ent]=NativeControl ? NativePercent[Client] : DefaultPercent;
 		AmplifierDistance[ent]=NativeControl ? NativeDistance[Client] : DefaultDistance;
 		AmplifierCondition[ent]=NativeControl ? NativeCondition[Client] : DefaultCondition;
-		new String:s[128];
+		SetEntProp(ent, Prop_Send, "m_iMaxHealth", AmpHealth); //PCGamer
+		SetVariantString("-66"); //PCGamer
+		char s[128];
 		Format(s,128,"%s%s",AmplifierModel,".mdl");
 		SetEntityModel(ent,s);
 		SetEntProp(ent, Prop_Send, "m_nSkin", GetEntProp(ent, Prop_Send, "m_nSkin")+2);
 		CreateTimer(4.0, DispCheckStage1, EntIndexToEntRef(ent));
 	}
-	return;// Plugin_Continue;
+	return 0;// Plugin_Continue;
 }
 
 
 //Wait 3 seconds before check model to change
-public Action:DispCheckStage1(Handle:hTimer,any:ref)
+public Action DispCheckStage1(Handle hTimer,any ref)
 {
 	if (EntRefToEntIndex(ref) > 0)
 		CreateTimer(0.1, DispCheckStage2, ref, TIMER_REPEAT);
@@ -901,12 +932,12 @@ public Action:DispCheckStage1(Handle:hTimer,any:ref)
 }
 
 //Change model if it's not Amplifier's model
-public Action:DispCheckStage2(Handle:hTimer,any:ref)
+public Action DispCheckStage2(Handle hTimer,any ref)
 {
-	new ent = EntRefToEntIndex(ref);
+	int ent = EntRefToEntIndex(ref);
 	if (ent > 0 && IsValidEntity(ent))
 	{
-		new String:modelname[128];
+		char modelname[128];
 
 		/*
 		GetEntPropString(ent, Prop_Data, "m_ModelName", modelname, 128);
@@ -921,13 +952,13 @@ public Action:DispCheckStage2(Handle:hTimer,any:ref)
 		Format(modelname,128,"%s%s",AmplifierModel,".mdl");
 		SetEntProp(ent, Prop_Send, "m_iUpgradeLevel",1);
 		SetEntityModel(ent,modelname);
-		SetEntProp(ent, Prop_Send, "m_iMaxHealth",216);
-		SetVariantString("-66");
+		//SetEntProp(ent, Prop_Send, "m_iMaxHealth", AmpHealth); //PCGamer
+		//SetVariantString("-66"); //PCGamer
 		AcceptEntityInput(ent, "RemoveHealth");
 		SetEntProp(ent, Prop_Send, "m_nSkin", GetEntProp(ent, Prop_Send, "m_nSkin")-2);
 
-		new particle;
-		if (TFTeam:GetEntProp(ent, Prop_Send, "m_iTeamNum")==TFTeam_Red)
+		int particle;
+		if (view_as<TFTeam>(GetEntProp(ent, Prop_Send, "m_iTeamNum"))==TFTeam_Red)
 			AttachParticle(ent,"teleported_red",particle); //Create Effect of TP
 		else
 			AttachParticle(ent,"teleported_blue",particle); //Create Effect of TP
@@ -938,35 +969,35 @@ public Action:DispCheckStage2(Handle:hTimer,any:ref)
 }
 
 //Wait for kill teleport effect
-public Action:DispCheckStage1a(Handle:hTimer,any:ref)
+public Action DispCheckStage1a(Handle hTimer,any ref)
 {
-	new ent = EntRefToEntIndex(ref);
+	int ent = EntRefToEntIndex(ref);
 	if (ent > 0 && IsValidEntity(ent))
 		RemoveEdict(ent);
 
 	return Plugin_Continue;
 }
 //Spa suppin' mah Amplifier!!!!11
-CheckSapper(ent)
+void CheckSapper(int ent)
 {
 	CreateTimer(0.5, SapperCheckStage1,EntIndexToEntRef(ent));	
 	//return Plugin_Continue;
 }
 
-public Action:SapperCheckStage1(Handle:hTimer,any:ref)
+public Action SapperCheckStage1(Handle hTimer,any ref)
 {
-	new ent = EntRefToEntIndex(ref);
+	int ent = EntRefToEntIndex(ref);
 	if (ent > 0 && IsValidEntity(ent))
 	{
-		new String:classname[64];
+		char classname[64];
 		GetEdictClassname(ent, classname, sizeof(classname));
 		if (!strcmp(classname, "obj_attachment_sapper"))
 		{
-			new maxEntities = GetMaxEntities();
-			for (new i=1;i<maxEntities;i++)
+			int maxEntities = GetMaxEntities();
+			for (int i=1;i<maxEntities;i++)
 			{
-				new ampref = BuildingRef[i];
-				new ampent = EntRefToEntIndex(ampref);
+				int ampref = BuildingRef[i];
+				int ampent = EntRefToEntIndex(ampref);
 				if (ampent > 0)
 				{
 					if ((GetEntProp(ampent, Prop_Send, "m_bHasSapper")==1) && !AmplifierSapped[ampent])
@@ -982,9 +1013,9 @@ public Action:SapperCheckStage1(Handle:hTimer,any:ref)
 	return Plugin_Continue;
 }
 
-public Action:SapperCheckStage2(Handle:hTimer,any:ref)
+public Action SapperCheckStage2(Handle hTimer,any ref)
 {
-	new ent = EntRefToEntIndex(ref);
+	int ent = EntRefToEntIndex(ref);
 	if (ent > 0 && IsValidEntity(ent))
 	{
 		if ((GetEntProp(ent, Prop_Send, "m_bHasSapper")==0) && AmplifierSapped[ent])
@@ -998,7 +1029,7 @@ public Action:SapperCheckStage2(Handle:hTimer,any:ref)
 
 /* With COND extension i can kill this bugged function
 //Generate 100% crit if player near Amplifier 
-public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &bool:result)
+public Action TF2_CalcIsAttackCritical(int client, int weapon, char[] weaponname, bool &result)
 {
 	if (!NearAmplifier[client])
 		return Plugin_Continue;
@@ -1011,12 +1042,12 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 */
 
 //Create Crit Particle
-AttachParticle(ent, String:particleType[],&particle)
+void AttachParticle(int ent, char[] particleType,int &particle)
 {
 	particle = CreateEntityByName("info_particle_system");
 	
-	new String:tName[128];
-	new Float:pos[3];
+	char tName[128];
+	float pos[3];
 	GetEntPropVector(ent, Prop_Send, "m_vecOrigin", pos);
 	TeleportEntity(particle, pos, NULL_VECTOR, NULL_VECTOR);
 	
@@ -1035,11 +1066,11 @@ AttachParticle(ent, String:particleType[],&particle)
 	AcceptEntityInput(particle, "start");
 }
 
-stock CleanString(String:strBuffer[])
+stock void CleanString(char[] strBuffer)
 {
 	// Cleanup any illegal characters
-	new Length = strlen(strBuffer);
-	for (new i=0; i<Length; i++)
+	int Length = strlen(strBuffer);
+	for (int i=0; i<Length; i++)
 	{
 		switch(strBuffer[i])
 		{
@@ -1057,35 +1088,39 @@ stock CleanString(String:strBuffer[])
  * Description: Native Interface
  */
 
-public Native_ControlAmplifier(Handle:plugin,numParams)
+public int Native_ControlAmplifier(Handle plugin,int numParams)
 {
 	NativeControl = GetNativeCell(1);
+	
+	return 0;
 }
 
-public Native_SetAmplifier(Handle:plugin,numParams)
+public int Native_SetAmplifier(Handle plugin,int numParams)
 {
-	new client = GetNativeCell(1);
-	UseAmplifier[client] = bool:GetNativeCell(2);
+	int client = GetNativeCell(1);
+	UseAmplifier[client] = view_as<bool>(GetNativeCell(2));
 
-	new Float:distance = Float:GetNativeCell(3);
+	float distance = view_as<float>(GetNativeCell(3));
 	NativeDistance[client] = (distance < 0.0) ? DefaultDistance : distance;
 
-	new TFCond:condition = TFCond:GetNativeCell(4);
+	TFCond condition = view_as<TFCond>(GetNativeCell(4));
 	NativeCondition[client] = (condition < TFCond_Slowed) ? DefaultCondition : condition;
 
-	new percent = GetNativeCell(5);
+	int percent = GetNativeCell(5);
 	NativePercent[client] = (distance < 0) ? DefaultPercent : percent;
+	
+	return 0;
 }
 
-public Native_HasAmplifier(Handle:plugin,numParams)
+public int Native_HasAmplifier(Handle plugin,int numParams)
 {
-	new count = 0;
-	new client = GetNativeCell(1);
-	new maxEntities = GetMaxEntities();
-	for (new i=1;i<maxEntities;i++)
+	int count = 0;
+	int client = GetNativeCell(1);
+	int maxEntities = GetMaxEntities();
+	for (int i=1;i<maxEntities;i++)
 	{
-		new ampref = BuildingRef[i];
-		new ampent = EntRefToEntIndex(ampref);
+		int ampref = BuildingRef[i];
+		int ampent = EntRefToEntIndex(ampref);
 		if (ampent > 0)
 		{
 			if (GetEntPropEnt(ampent, Prop_Send, "m_hBuilder") == client)
@@ -1095,26 +1130,26 @@ public Native_HasAmplifier(Handle:plugin,numParams)
 	return count;
 }
 
-public Native_ConvertToAmplifier(Handle:plugin,numParams)
+public int Native_ConvertToAmplifier(Handle plugin,int numParams)
 {
-	new ent = GetNativeCell(1);
+	int ent = GetNativeCell(1);
 	if (ent > 0 && IsValidEntity(ent))
 	{
-		new client = GetNativeCell(2);
-		new bool:save = UseAmplifier[client];
-		new Float:saveDist = NativeDistance[client];
-		new TFCond:saveCond = NativeCondition[client];
-		new savePercent = NativePercent[client];
+		int client = GetNativeCell(2);
+		bool save = UseAmplifier[client];
+		float saveDist = NativeDistance[client];
+		TFCond saveCond = NativeCondition[client];
+		int savePercent = NativePercent[client];
 
-		new Float:distance = Float:GetNativeCell(3);
+		float distance = view_as<float>(GetNativeCell(3));
 		if (distance >= 0.0)
 			NativeDistance[client] = distance;
 
-		new TFCond:condition = TFCond:GetNativeCell(4);
+		TFCond condition = view_as<TFCond>(GetNativeCell(4));
 		if (condition >= TFCond_Slowed)
 			NativeCondition[client] = condition;
 
-		new percent = GetNativeCell(5);
+		int percent = GetNativeCell(5);
 		if (percent >= 0)
 			NativePercent[client] =  percent;
 
@@ -1126,10 +1161,12 @@ public Native_ConvertToAmplifier(Handle:plugin,numParams)
 		NativePercent[client] = savePercent;
 		UseAmplifier[client] = save;
 	}
+	
+	return 0;
 }
 
 #if defined _ztf2grab_included
-public Action:OnPickupObject(client, builder, ent)
+public Action OnPickupObject(client, builder, ent)
 {
 	if (BuildingRef[ent] != 0 && EntRefToEntIndex(BuildingRef[ent]) == ent)
 	{
@@ -1148,7 +1185,7 @@ public Action:OnPickupObject(client, builder, ent)
  */
 #tryinclude <raytrace>
 #if !defined _raytrace_included
-stock bool:TraceTargetIndex(client, target, Float:clientLoc[3], Float:targetLoc[3])
+stock bool TraceTargetIndex(int client, int target, float clientLoc[3], float targetLoc[3])
 {
 	targetLoc[2] += 50.0; // Adjust trace position of target
 	TR_TraceRayFilter(clientLoc, targetLoc, MASK_SOLID,
@@ -1162,7 +1199,7 @@ stock bool:TraceTargetIndex(client, target, Float:clientLoc[3], Float:targetLoc[
  *Trace Filters*
 ****************/
 
-public bool:TraceRayDontHitSelf(entity, mask, any:data)
+public bool TraceRayDontHitSelf(int entity, int mask, any data)
 {
 	return (entity != data); // Check if the TraceRay hit the owning entity.
 }
