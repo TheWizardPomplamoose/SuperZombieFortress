@@ -12,7 +12,6 @@
 
 #tryinclude "ztf2grab"
 
-#define MP 34
 #define ME 2048
 
 #define PLUGIN_VERSION "2.5"
@@ -20,19 +19,19 @@
 int g_BeamSprite;
 int g_HaloSprite;
 
-bool UseAmplifier[MP]={false, ...};
-bool UseRepairNode[MP]={false, ...};
-bool DontAsk[MP]={false, ...};
-bool NearAmplifier[MP]={false, ...};
+bool UseAmplifier[MAXPLAYERS + 1]={false, ...};
+bool UseRepairNode[MAXPLAYERS + 1]={false, ...};
+bool DontAsk[MAXPLAYERS + 1]={false, ...};
+bool NearAmplifier[MAXPLAYERS + 1]={false, ...};
 bool AmplifierOn[ME]={false, ...};
 bool AmplifierSapped[ME]={false, ...};
-bool ConditionApplied[ME][MP];
+bool ConditionApplied[ME][MAXPLAYERS + 1];
 float AmplifierDistance[ME];
 TFCond AmplifierCondition[ME];
 int AmplifierPercent[ME];
 int BuildingRef[ME];
-int EngiAssists[MP]={0, ...};
-int GetPar[MP];
+int EngiAssists[MAXPLAYERS + 1]={0, ...};
+int GetPar[MAXPLAYERS + 1];
 
 Handle cvarAmpHealth = INVALID_HANDLE;
 Handle cvarMetal = INVALID_HANDLE;
@@ -61,13 +60,13 @@ int DefaultPercent = 100;
 int MetalRegeneration = 10;
 int MetalPerPlayer = 5;
 int MetalMax = 400;
-int Revenges[MP]={0, ...};				//for Engineers with Frontier Justice
+int Revenges[MAXPLAYERS + 1]={0, ...};				//for Engineers with Frontier Justice
 int AmpHealth = 216;
 	
 bool NativeControl = false;
-TFCond NativeCondition[MP];
-float NativeDistance[MP];
-int NativePercent[MP];
+TFCond NativeCondition[MAXPLAYERS + 1];
+float NativeDistance[MAXPLAYERS + 1];
+int NativePercent[MAXPLAYERS + 1];
 
 #define AmplifierModel "models/buildables/amplifier_test/amplifier"
 #define AmplifierTex "materials/models/buildables/amplifier_test/amplifier"
